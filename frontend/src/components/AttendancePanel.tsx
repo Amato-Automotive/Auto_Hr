@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Upload, RefreshCw, Check, AlertCircle, FileText, Plus, X, Calendar, Pencil } from 'lucide-react';
 import { attendanceApi, type Employee, type Attendance, type AuthUser, type EmployeeAttendanceStatus } from '../services/api';
+import { BiometricDeviceCard } from './BiometricDeviceCard';
 
 interface AttendancePanelProps {
   user: AuthUser | null;
@@ -233,6 +234,8 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
           <p>{successMsg}</p>
         </div>
       )}
+
+      {isHR && <BiometricDeviceCard />}
 
       {/* HR Actions Panel */}
       {isHR && (

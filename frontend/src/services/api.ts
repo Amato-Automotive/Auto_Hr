@@ -278,7 +278,22 @@ export const attendanceApi = {
             method: 'POST',
             body: JSON.stringify(data),
         }),
+
+    biometricStatus: () => request<BiometricStatus>('/attendance/biometric/status'),
+
+    reprocessBiometric: () =>
+        request<{ linked: number; daysRebuilt: number; stillUnmapped: number }>('/attendance/biometric/reprocess', {
+            method: 'POST',
+        }),
 };
+
+export interface BiometricStatus {
+    devices: { id: number; serialNo: string; terminalType: string | null; lastSeenAt: string | null; lastIp: string | null }[];
+    punchesLast24h: number;
+    totalPunches: number;
+    latestPunch: { date: string; time: string } | null;
+    unmappedUsers: { biometricUserId: number; punches: number }[];
+}
 
 export const notificationApi = {
     list: () => request<{ notifications: AppNotification[]; unreadCount: number }>('/notifications'),
