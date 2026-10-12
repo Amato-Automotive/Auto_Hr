@@ -51,15 +51,18 @@ run **inside `hr-api`** on timers — there is no cron any more.
 - Let's Encrypt cert for `connect-api.amatoautomotive.co.in` (auto-renews; `sudo certbot certificates`).
 
 ### Firewall (ufw)
-- Port **5005** allowed **only from the office public IP** (rule comment "HR biometric device push").
-  The office Airtel line is **dynamic** (no static IP available), so the rule follows it:
-  - HR card → **Allow this office network** (pressed from an office computer) writes the request's
-    public IP to `/home/deploy/hr_office_ip` (`BIOMETRIC_OFFICE_IP_FILE`).
-  - Root cron `/etc/cron.d/hr-office-ip` runs `/usr/local/sbin/hr-office-ip-sync` every minute and
-    moves the ufw rule to that IP (`journalctl -t hr-office-ip` shows changes).
-  - While the rule is stale the device holds its punches and resends them, so nothing is lost —
-    they just arrive late. Set up once with the `hr_office_ip_setup.sh` script (needs sudo).
-  - Relies on nginx sending `X-Forwarded-For` (Express has `trust proxy` = 1).
+- Port **5005** allowed from the office ISP's address block **`122.161.0.0/16`** (Airtel Delhi
+  broadband, rule comment "HR biometric device push"). The office line has a **dynamic** IP that
+  changes whenever the router loses power (several times a day) and no static IP is available, so a
+  single-IP rule doesn't work. The device reconnects on its own once its new IP is allowed.
+- Compromise: other Airtel Delhi broadband users can reach the port. They can't read anything —
+  the receiver only accepts punches. Hardening in `biometricServer.ts`: allowed device serial only,
+  TransIDs more than 1000 past the last stored one are refused, 16 KB message cap, 4 connections
+  per IP, and every punch records `source_ip` so forged ones can be found and deleted.
+- If the card shows Offline for long and the office IP (`curl https://api.ipify.org` from the
+  office) is outside that block, add its block too:
+  `sudo ufw allow from <block> to any port 5005 proto tcp comment 'HR biometric device push'`.
+  The device holds its punches and resends them, so nothing is lost while it's blocked.
 - Pre-existing, not ours: 3306 (MySQL) is open to Anywhere — worth closing if nothing needs it.
 
 ### DNS
@@ -83,7 +86,6 @@ run **inside `hr-api`** on timers — there is no cron any more.
 | `UPLOAD_STORAGE_DRIVER=hostinger-ftp`, `UPLOAD_PUBLIC_BASE_URL`, `FTP_*` | Hostinger upload storage. `FTP_REMOTE_ROOT=/connect/uploads`, `FTP_PRIVATE_REMOTE_ROOT=/private-uploads`, `FTP_USER=u823909847.connect` |
 | `BIOMETRIC_PORT=5005` | receiver port |
 | `BIOMETRIC_ALLOWED_SERIALS` | `S/N102019100001698` — only this device may push |
-| `BIOMETRIC_OFFICE_IP_FILE` | `/home/deploy/hr_office_ip` — office IP the firewall allows (see Firewall) |
 
 ---
 
@@ -190,4 +192,5 @@ separate database dump job. Take a manual dump (above) before risky changes.
 ## 9. Open items
 - Rotate the Hostinger FTP password (was committed to this public repo in the old plan) and update
   `FTP_PASSWORD` in `server/.env`; consider making the GitHub repo private.
+- Make the GitHub repo private: the device serial (the receiver's main check) is in it.
 - Decommission the Vercel project `auto-hr-api` (its daily cron still runs against the old Hostinger DB).

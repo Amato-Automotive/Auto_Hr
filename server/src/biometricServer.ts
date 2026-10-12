@@ -3,7 +3,7 @@ import net from 'node:net';
 import { env } from './config/env.js';
 import prisma from './config/db.js';
 import { MAX_MESSAGE_BYTES, buildReply, parseMessage, parseTimeLog, splitMessages } from './biometric/protocol.js';
-import { recomputeDay, savePunch, touchDevice } from './biometric/attendance.js';
+import { MAX_TRANS_ID_JUMP, isPlausibleTransId, recomputeDay, savePunch, touchDevice } from './biometric/attendance.js';
 
 /**
  * Biometric push receiver — a separate long-running process (PM2: `hr-biometric`), because the
@@ -14,6 +14,9 @@ import { recomputeDay, savePunch, touchDevice } from './biometric/attendance.js'
  */
 
 const allowedSerials = new Set(env.BIOMETRIC_ALLOWED_SERIALS.split(',').map((s) => s.trim()).filter(Boolean));
+// The port is reachable from the office ISP's whole address block (dynamic IP), so cap connections.
+const MAX_CONNECTIONS_PER_IP = 4;
+const connectionsByIp = new Map<string, number>();
 const log = (msg: string) => console.log(`[biometric] ${msg}`);
 
 async function handleMessage(xml: string, socket: net.Socket, remoteIp: string): Promise<boolean> {
@@ -37,7 +40,11 @@ async function handleMessage(xml: string, socket: net.Socket, remoteIp: string):
                 if (msg.transId !== null) socket.write(buildReply('UploadedLog', msg.transId), 'latin1');
                 return true;
             }
-            const saved = await savePunch(deviceId, punch);
+            if (!(await isPlausibleTransId(deviceId, punch.transId))) {
+                log(`refusing TimeLog #${punch.transId} from ${remoteIp}: more than ${MAX_TRANS_ID_JUMP} past the last stored record`);
+                return false;
+            }
+            const saved = await savePunch(deviceId, punch, remoteIp);
             socket.write(buildReply('UploadedLog', punch.transId), 'latin1');
             if (saved.duplicate) return true;
 
@@ -71,6 +78,19 @@ const server = net.createServer((socket) => {
     // Messages from one connection are processed strictly in order.
     let queue: Promise<void> = Promise.resolve();
 
+    const open = (connectionsByIp.get(remoteIp) ?? 0) + 1;
+    if (open > MAX_CONNECTIONS_PER_IP) {
+        log(`too many connections from ${remoteIp} — refusing`);
+        socket.destroy();
+        return;
+    }
+    connectionsByIp.set(remoteIp, open);
+    socket.on('close', () => {
+        const left = (connectionsByIp.get(remoteIp) ?? 1) - 1;
+        if (left > 0) connectionsByIp.set(remoteIp, left);
+        else connectionsByIp.delete(remoteIp);
+    });
+
     socket.setKeepAlive(true, 60_000);
     socket.setTimeout(10 * 60_000, () => socket.destroy());
 
@@ -99,6 +119,8 @@ const server = net.createServer((socket) => {
     });
     socket.on('error', (error) => log(`socket error from ${remoteIp}: ${error.message}`));
 });
+
+server.maxConnections = 50;
 
 async function main() {
     await prisma.$connect();

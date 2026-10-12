@@ -1,10 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
-import { promises as fs } from 'node:fs';
-import { isIPv4 } from 'node:net';
 import prisma from '../config/db.js';
-import { env } from '../config/env.js';
 import {
     authenticate,
     authorize,
@@ -831,7 +828,7 @@ router.get(
     authorize('HR'),
     asyncHandler(async (_req, res) => {
         const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const [devices, punchesLast24h, totalPunches, latestPunch, unmapped, officeIp] = await Promise.all([
+        const [devices, punchesLast24h, totalPunches, latestPunch, unmapped] = await Promise.all([
             prisma.biometricDevice.findMany({
                 select: { id: true, serialNo: true, terminalType: true, lastSeenAt: true, lastIp: true },
                 orderBy: { lastSeenAt: 'desc' },
@@ -845,7 +842,6 @@ router.get(
                 _count: { _all: true },
                 orderBy: { biometricUserId: 'asc' },
             }),
-            readOfficeIp(),
         ]);
 
         res.json({
@@ -858,8 +854,6 @@ router.get(
                     ? { date: latestPunch.punchDate.toISOString().slice(0, 10), time: latestPunch.punchTime }
                     : null,
                 unmappedUsers: unmapped.map((u) => ({ biometricUserId: u.biometricUserId, punches: u._count._all })),
-                officeIp,
-                officeIpConfigurable: Boolean(env.BIOMETRIC_OFFICE_IP_FILE),
             },
         });
     })
@@ -874,58 +868,6 @@ router.post(
             success: true,
             data: result,
             message: `Linked ${result.linked} punch(es), rebuilt ${result.daysRebuilt} day(s)`,
-        });
-    })
-);
-
-// The office line has a dynamic public IP and the firewall only lets that IP reach the receiver.
-// When the IP changes, an HR user at the office presses a button: we record the IP their request
-// came from, and a root cron on the VPS (hr-office-ip-sync) moves the ufw rule to it. The device
-// holds unacknowledged punches, so nothing is lost while the rule is stale.
-
-async function readOfficeIp(): Promise<string | null> {
-    if (!env.BIOMETRIC_OFFICE_IP_FILE) return null;
-    try {
-        const ip = (await fs.readFile(env.BIOMETRIC_OFFICE_IP_FILE, 'utf8')).trim();
-        return isIPv4(ip) ? ip : null;
-    } catch {
-        return null;
-    }
-}
-
-function isPublicIPv4(ip: string): boolean {
-    if (!isIPv4(ip)) return false;
-    const [a = 0, b = 0] = ip.split('.').map(Number);
-    return !(
-        a === 0 || a === 10 || a === 127 || a >= 224 ||
-        (a === 100 && b >= 64 && b <= 127) ||
-        (a === 169 && b === 254) ||
-        (a === 172 && b >= 16 && b <= 31) ||
-        (a === 192 && b === 168)
-    );
-}
-
-router.post(
-    '/biometric/office-ip',
-    authorize('HR'),
-    asyncHandler(async (req, res) => {
-        if (!env.BIOMETRIC_OFFICE_IP_FILE) throw new BadRequestError('Office network update is not set up on this server');
-        const ip = (req.ip || '').replace(/^::ffff:/, '');
-        if (!isPublicIPv4(ip)) throw new BadRequestError(`Could not detect a public IPv4 address for this network (got "${ip}")`);
-
-        const previous = await readOfficeIp();
-        const tmp = `${env.BIOMETRIC_OFFICE_IP_FILE}.tmp`;
-        await fs.writeFile(tmp, `${ip}
-`);
-        await fs.rename(tmp, env.BIOMETRIC_OFFICE_IP_FILE);
-        console.log(`[biometric] office IP set to ${ip} (was ${previous ?? 'unset'}) by user ${req.user?.userId}`);
-
-        res.json({
-            success: true,
-            data: { ip, previous },
-            message: previous === ip
-                ? `This network (${ip}) is already allowed`
-                : `Allowed ${ip}; the device should reconnect within 2 minutes`,
         });
     })
 );

@@ -36,7 +36,7 @@ export interface TimeLog {
 }
 
 /** Largest message we buffer before treating the stream as garbage (photos can make TimeLogs big). */
-export const MAX_MESSAGE_BYTES = 2 * 1024 * 1024;
+export const MAX_MESSAGE_BYTES = 16 * 1024;
 
 function tag(xml: string, name: string): string | null {
     const match = xml.match(new RegExp(`<${name}>([^<]*)</${name}>`));

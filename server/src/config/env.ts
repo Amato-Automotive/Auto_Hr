@@ -58,8 +58,6 @@ const envSchema = z.object({
     BIOMETRIC_PORT: z.coerce.number().default(5005),
     /** Comma-separated device serials allowed to push (e.g. "S/N102019100001698"). Empty = any. */
     BIOMETRIC_ALLOWED_SERIALS: z.string().optional().default(''),
-    /** File holding the office's public IP; a root cron on the VPS mirrors it into the ufw rule for the port. Empty = feature off. */
-    BIOMETRIC_OFFICE_IP_FILE: z.string().optional().default(''),
 });
 
 // Load and validate environment variables

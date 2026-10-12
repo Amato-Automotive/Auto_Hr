@@ -126,6 +126,8 @@ model BiometricPunch {
   attendStat      String?   @map("attend_stat") @db.VarChar(30)
   verifyMode      String?   @map("verify_mode") @db.VarChar(30)
   receivedAt      DateTime  @default(now()) @map("received_at")
+  /// IP the record arrived from — lets forged punches be traced and removed.
+  sourceIp        String?   @map("source_ip") @db.VarChar(45)
   device          BiometricDevice @relation(fields: [deviceId], references: [id])
   employee        Employee?       @relation(fields: [employeeId], references: [id], onDelete: SetNull)
 

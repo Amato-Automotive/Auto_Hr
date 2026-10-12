@@ -48,6 +48,18 @@ export async function touchDevice(serialNo: string, terminalType: string | null,
 
 // ─── Punches ─────────────────────────────────────────────────
 
+/**
+ * The device numbers its records sequentially, and a TransID we've already stored is skipped as a
+ * duplicate. A forged record with a TransID far ahead would make the device's real records with
+ * that number be discarded later, so anything this far beyond the highest stored one is refused.
+ */
+export const MAX_TRANS_ID_JUMP = 1000;
+
+export async function isPlausibleTransId(deviceId: number, transId: number): Promise<boolean> {
+    const { _max } = await prisma.biometricPunch.aggregate({ where: { deviceId }, _max: { transId: true } });
+    return _max.transId === null || transId <= _max.transId + MAX_TRANS_ID_JUMP;
+}
+
 export interface SavedPunch {
     duplicate: boolean;
     employeeId: number | null;
@@ -55,7 +67,7 @@ export interface SavedPunch {
 }
 
 /** Persists one punch. Idempotent per (device, TransID), so a re-sent record is just reported as a duplicate. */
-export async function savePunch(deviceId: number, log: TimeLog): Promise<SavedPunch> {
+export async function savePunch(deviceId: number, log: TimeLog, sourceIp: string | null): Promise<SavedPunch> {
     const employee = await prisma.employee.findUnique({ where: { biometricId: log.userId }, select: { id: true } });
     const employeeId = employee?.id ?? null;
     const wallClockAsUtc = new Date(`${log.date}T${log.time}.000Z`).getTime();
@@ -73,6 +85,7 @@ export async function savePunch(deviceId: number, log: TimeLog): Promise<SavedPu
             punchedAt: new Date(wallClockAsUtc - IST_OFFSET_MS),
             attendStat: log.attendStat,
             verifyMode: log.verifyMode,
+            sourceIp,
         }],
         skipDuplicates: true,
     });
