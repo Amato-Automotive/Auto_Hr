@@ -53,6 +53,11 @@ const envSchema = z.object({
     FTP_SECURE: booleanString(false),
     FTP_REMOTE_ROOT: z.string().optional().default('/public_html/uploads'),
     FTP_PRIVATE_REMOTE_ROOT: z.string().optional().default('/private-uploads'),
+
+    // Biometric push receiver (src/biometricServer.ts)
+    BIOMETRIC_PORT: z.coerce.number().default(5005),
+    /** Comma-separated device serials allowed to push (e.g. "S/N102019100001698"). Empty = any. */
+    BIOMETRIC_ALLOWED_SERIALS: z.string().optional().default(''),
 });
 
 // Load and validate environment variables

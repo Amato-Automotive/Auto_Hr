@@ -90,9 +90,49 @@ model Employee {
   iltRegistrations ILTRegistration[]
   badges           EmployeeBadge[]
   documents        EmployeeDocument[]
+  biometricPunches BiometricPunch[]
 
   @@index([managerId], map: "employees_manager_id_fkey")
   @@map("employees")
+}
+
+/// A biometric terminal that pushes punches to `src/biometricServer.ts` (Secureye/Smackbio XML push protocol).
+model BiometricDevice {
+  id           Int       @id @default(autoincrement())
+  serialNo     String    @unique @map("serial_no") @db.VarChar(100)
+  terminalType String?   @map("terminal_type") @db.VarChar(50)
+  lastSeenAt   DateTime? @map("last_seen_at")
+  lastIp       String?   @map("last_ip") @db.VarChar(64)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  punches      BiometricPunch[]
+
+  @@map("biometric_devices")
+}
+
+/// Every raw punch received from a device, kept permanently so daily attendance can always be
+/// recomputed (e.g. after an employee's biometricId is mapped later). `employeeId` is null until
+/// the device user ID matches an Employee.biometricId.
+model BiometricPunch {
+  id              Int       @id @default(autoincrement())
+  deviceId        Int       @map("device_id")
+  transId         Int       @map("trans_id")
+  biometricUserId Int       @map("biometric_user_id")
+  employeeId      Int?      @map("employee_id")
+  /// Device wall-clock date/time (IST) exactly as sent — used for attendance, no timezone conversion.
+  punchDate       DateTime  @map("punch_date") @db.Date
+  punchTime       String    @map("punch_time") @db.VarChar(8)
+  /// The same moment as a real instant (device time minus +05:30), for sorting and audit.
+  punchedAt       DateTime  @map("punched_at")
+  attendStat      String?   @map("attend_stat") @db.VarChar(30)
+  verifyMode      String?   @map("verify_mode") @db.VarChar(30)
+  receivedAt      DateTime  @default(now()) @map("received_at")
+  device          BiometricDevice @relation(fields: [deviceId], references: [id])
+  employee        Employee?       @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@unique([deviceId, transId])
+  @@index([employeeId, punchDate])
+  @@index([biometricUserId])
+  @@map("biometric_punches")
 }
 
 model EmployeeManager {

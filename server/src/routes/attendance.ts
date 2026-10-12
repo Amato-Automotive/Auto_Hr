@@ -12,7 +12,7 @@ import { validate } from '../middleware/validate.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { BadRequestError } from '../utils/errors.js';
 import { notify, getManagerAndHrUserIds } from '../utils/notificationService.js';
-import { mapWithConcurrency } from '../utils/concurrency.js';
+import { reprocessUnmappedPunches } from '../biometric/attendance.js';
 import { isShortLeave, SHORT_LEAVE_MORNING } from '../utils/leaveRules.js';
 
 const router = Router();
@@ -819,117 +819,56 @@ router.post(
     })
 );
 
-// ─── POST /api/attendance/sync-device ────────────────────────
-// Auto-sync attendance directly from ZKTeco/Secureye machine (READ ONLY)
+// ─── Biometric push receiver (status + reprocess) ────────────
+// Punches arrive via the separate receiver process (src/biometricServer.ts); these routes let HR
+// see whether the device is talking to us and link punches from not-yet-mapped biometric IDs.
 
-router.post(
-    '/sync-device',
+router.get(
+    '/biometric/status',
     authorize('HR'),
     asyncHandler(async (_req, res) => {
-        const ip = process.env.BIOMETRIC_DEVICE_IP;
-        const port = Number(process.env.BIOMETRIC_DEVICE_PORT) || 4370;
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const [devices, punchesLast24h, totalPunches, latestPunch, unmapped] = await Promise.all([
+            prisma.biometricDevice.findMany({
+                select: { id: true, serialNo: true, terminalType: true, lastSeenAt: true, lastIp: true },
+                orderBy: { lastSeenAt: 'desc' },
+            }),
+            prisma.biometricPunch.count({ where: { receivedAt: { gte: since } } }),
+            prisma.biometricPunch.count(),
+            prisma.biometricPunch.findFirst({ orderBy: { punchedAt: 'desc' }, select: { punchDate: true, punchTime: true } }),
+            prisma.biometricPunch.groupBy({
+                by: ['biometricUserId'],
+                where: { employeeId: null },
+                _count: { _all: true },
+                orderBy: { biometricUserId: 'asc' },
+            }),
+        ]);
 
-        if (!ip) throw new BadRequestError('BIOMETRIC_DEVICE_IP is not configured in .env');
+        res.json({
+            success: true,
+            data: {
+                devices,
+                punchesLast24h,
+                totalPunches,
+                latestPunch: latestPunch
+                    ? { date: latestPunch.punchDate.toISOString().slice(0, 10), time: latestPunch.punchTime }
+                    : null,
+                unmappedUsers: unmapped.map((u) => ({ biometricUserId: u.biometricUserId, punches: u._count._all })),
+            },
+        });
+    })
+);
 
-        let zkInstance: any = null;
-        try {
-            // Loaded on demand — only this route needs the device driver.
-            // @ts-ignore — zkteco-js ships no type declarations
-            const { default: ZKLib } = await import('zkteco-js');
-            zkInstance = new ZKLib(ip, port, 10000, 4000);
-            
-            // 1. Connect to device
-            await zkInstance.createSocket();
-            
-            // 2. Read attendance log (READ ONLY)
-            const attendances = await zkInstance.getAttendances();
-            
-            if (!attendances || !attendances.data || attendances.data.length === 0) {
-                 await zkInstance.disconnect();
-                 res.json({ success: true, message: 'No new attendance data found on device', data: { inserted: 0, skipped: 0 } });
-                 return;
-            }
-
-            // 3. Convert raw device data to our BiometricRecord format
-            const records: BiometricRecord[] = attendances.data.map((log: any) => {
-                const dt = new Date(log.recordTime);
-                return {
-                    enNo: parseInt(log.deviceUserId, 10),
-                    dateTime: dt,
-                    date: dt.toISOString().split('T')[0],
-                    time: dt.toTimeString().split(' ')[0],
-                };
-            });
-
-            // 4. Process and group records using existing logic
-            const processed = processAttendanceRecords(records);
-
-            // 5. Save to database
-            const biometricIds = [...new Set(processed.map(r => r.biometricId))];
-            const employees = await prisma.employee.findMany({
-                where: { biometricId: { in: biometricIds } },
-                select: { id: true, biometricId: true },
-            });
-            const bioToEmpId = new Map(employees.map(e => [e.biometricId, e.id]));
-
-            const mapped = processed.flatMap((record) => {
-                const empId = bioToEmpId.get(record.biometricId);
-                return empId ? [{ empId, record }] : [];
-            });
-            const unmapped = processed.length - mapped.length;
-
-            // Upserts run a few at a time instead of strictly one after another.
-            const outcomes = await mapWithConcurrency(mapped, 5, async ({ empId, record }) => {
-                const fields = {
-                    day: record.day,
-                    checkIn: record.checkIn,
-                    checkOut: record.checkOut,
-                    totalWorkingHours: record.totalWorkingHours,
-                    isLate: record.isLate,
-                    lateBy: record.lateBy,
-                    overtime: record.overtime,
-                    otTime: record.otTime,
-                    status: 'PRESENT' as const,
-                };
-                try {
-                    await prisma.attendance.upsert({
-                        where: {
-                            employeeId_date: {
-                                employeeId: empId,
-                                date: new Date(record.date),
-                            },
-                        },
-                        update: fields,
-                        create: { employeeId: empId, date: new Date(record.date), ...fields },
-                    });
-                    return true;
-                } catch {
-                    return false;
-                }
-            });
-            const inserted = outcomes.filter(Boolean).length;
-            const skipped = outcomes.length - inserted;
-            
-            // Disconnect safely
-            await zkInstance.disconnect();
-
-            res.json({
-                success: true,
-                message: 'Device sync complete',
-                data: {
-                    totalRecords: records.length,
-                    processedDays: processed.length,
-                    inserted,
-                    skipped,
-                    unmappedEmployees: unmapped,
-                },
-            });
-        } catch (error: any) {
-            if (zkInstance) {
-                try { await zkInstance.disconnect(); } catch (e) {}
-            }
-            throw new BadRequestError(`Failed to sync with device: ${error.message || 'Connection Timeout'}`);
-        }
+router.post(
+    '/biometric/reprocess',
+    authorize('HR'),
+    asyncHandler(async (_req, res) => {
+        const result = await reprocessUnmappedPunches();
+        res.json({
+            success: true,
+            data: result,
+            message: `Linked ${result.linked} punch(es), rebuilt ${result.daysRebuilt} day(s)`,
+        });
     })
 );
 

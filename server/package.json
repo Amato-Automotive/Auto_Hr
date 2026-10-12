@@ -8,12 +8,15 @@
         "dev": "tsx watch src/index.ts",
         "build": "tsc && node -e \"require('node:fs').cpSync('src/assets','dist/assets',{recursive:true})\"",
         "start": "node dist/index.js",
+        "start:biometric": "node dist/biometricServer.js",
+        "dev:biometric": "tsx watch src/biometricServer.ts",
         "db:generate": "prisma generate",
         "db:push": "prisma db push",
         "db:migrate": "prisma migrate dev",
         "db:seed": "tsx prisma/seed.ts",
         "db:studio": "prisma studio",
         "migrate:storage": "tsx scripts/migrateBase64ToStorage.ts",
+        "users:provision": "tsx src/scripts/provisionEmployeeUsers.ts",
         "lint": "eslint src/"
     },
     "dependencies": {
@@ -32,7 +35,6 @@
         "pdf-lib": "^1.17.1",
         "xlsx": "^0.18.5",
         "xml2js": "^0.6.2",
-        "zkteco-js": "^1.7.1",
         "zod": "^3.24.2"
     },
     "devDependencies": {
