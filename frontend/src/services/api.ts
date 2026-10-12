@@ -285,6 +285,9 @@ export const attendanceApi = {
         request<{ linked: number; daysRebuilt: number; stillUnmapped: number }>('/attendance/biometric/reprocess', {
             method: 'POST',
         }),
+
+    allowOfficeNetwork: () =>
+        request<{ ip: string; previous: string | null }>('/attendance/biometric/office-ip', { method: 'POST' }),
 };
 
 export interface BiometricStatus {
@@ -293,6 +296,9 @@ export interface BiometricStatus {
     totalPunches: number;
     latestPunch: { date: string; time: string } | null;
     unmappedUsers: { biometricUserId: number; punches: number }[];
+    /** Public IP the firewall currently lets the device push from. */
+    officeIp: string | null;
+    officeIpConfigurable: boolean;
 }
 
 export const notificationApi = {

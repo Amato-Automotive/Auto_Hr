@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Fingerprint, RefreshCw, Link2, AlertCircle, Check } from 'lucide-react';
+import { Fingerprint, RefreshCw, Link2, AlertCircle, Check, Wifi } from 'lucide-react';
 import { attendanceApi, type BiometricStatus } from '../services/api';
 
 // The device reconnects about every minute, so anything older than this means it's offline.
@@ -14,12 +14,13 @@ function timeAgo(iso: string): string {
   return `${Math.floor(secs / 86400)} days ago`;
 }
 
-/** HR-only: live status of the biometric push receiver, plus linking punches from unmapped device IDs. */
+/** HR-only: live status of the biometric push receiver, linking punches for newly mapped employees, and re-allowing the office network. */
 export const BiometricDeviceCard: React.FC = () => {
   const [status, setStatus] = useState<BiometricStatus | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [reprocessing, setReprocessing] = useState(false);
+  const [allowing, setAllowing] = useState(false);
 
   const load = async () => {
     try {
@@ -48,6 +49,20 @@ export const BiometricDeviceCard: React.FC = () => {
       setError(err.message || 'Reprocess failed');
     } finally {
       setReprocessing(false);
+    }
+  };
+
+  const handleAllowNetwork = async () => {
+    setAllowing(true);
+    setNotice('');
+    try {
+      const res = await attendanceApi.allowOfficeNetwork();
+      setNotice(res.message || 'Office network allowed');
+      await load();
+    } catch (err: any) {
+      setError(err.message || 'Could not update the office network');
+    } finally {
+      setAllowing(false);
     }
   };
 
@@ -123,6 +138,32 @@ export const BiometricDeviceCard: React.FC = () => {
               {reprocessing ? 'Linking…' : 'Link punches'}
             </button>
           </div>
+
+          {status.officeIpConfigurable && (
+            <div
+              className={`mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl border ${
+                device && !online ? 'bg-amber-50 border-amber-200' : 'border-slate-100'
+              }`}
+            >
+              <p className="text-[11px] text-slate-600">
+                {device && !online && (
+                  <strong className="block text-amber-800">
+                    Device offline? The office internet IP may have changed. Press the button from a computer at the office.
+                  </strong>
+                )}
+                Allowed office network: <strong>{status.officeIp ?? 'not set'}</strong>. The device keeps its punches and sends them once it can connect.
+              </p>
+              <button
+                type="button"
+                onClick={handleAllowNetwork}
+                disabled={allowing}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl border border-[#f46617] text-[#f46617] text-xs font-bold hover:bg-orange-50 disabled:opacity-60 transition-colors flex-shrink-0"
+              >
+                <Wifi className="w-3.5 h-3.5" />
+                {allowing ? 'Allowing…' : 'Allow this office network'}
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

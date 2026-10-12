@@ -51,9 +51,15 @@ run **inside `hr-api`** on timers — there is no cron any more.
 - Let's Encrypt cert for `connect-api.amatoautomotive.co.in` (auto-renews; `sudo certbot certificates`).
 
 ### Firewall (ufw)
-- Port **5005** allowed **only from the office public IP** (`122.161.74.111`, rule comment
-  "HR biometric device push"). If the office IP changes, the device can't push — update the rule:
-  `sudo ufw delete allow from <old-ip> to any port 5005 proto tcp && sudo ufw allow from <new-ip> to any port 5005 proto tcp comment 'HR biometric device push'`
+- Port **5005** allowed **only from the office public IP** (rule comment "HR biometric device push").
+  The office Airtel line is **dynamic** (no static IP available), so the rule follows it:
+  - HR card → **Allow this office network** (pressed from an office computer) writes the request's
+    public IP to `/home/deploy/hr_office_ip` (`BIOMETRIC_OFFICE_IP_FILE`).
+  - Root cron `/etc/cron.d/hr-office-ip` runs `/usr/local/sbin/hr-office-ip-sync` every minute and
+    moves the ufw rule to that IP (`journalctl -t hr-office-ip` shows changes).
+  - While the rule is stale the device holds its punches and resends them, so nothing is lost —
+    they just arrive late. Set up once with the `hr_office_ip_setup.sh` script (needs sudo).
+  - Relies on nginx sending `X-Forwarded-For` (Express has `trust proxy` = 1).
 - Pre-existing, not ours: 3306 (MySQL) is open to Anywhere — worth closing if nothing needs it.
 
 ### DNS
@@ -77,6 +83,7 @@ run **inside `hr-api`** on timers — there is no cron any more.
 | `UPLOAD_STORAGE_DRIVER=hostinger-ftp`, `UPLOAD_PUBLIC_BASE_URL`, `FTP_*` | Hostinger upload storage. `FTP_REMOTE_ROOT=/connect/uploads`, `FTP_PRIVATE_REMOTE_ROOT=/private-uploads`, `FTP_USER=u823909847.connect` |
 | `BIOMETRIC_PORT=5005` | receiver port |
 | `BIOMETRIC_ALLOWED_SERIALS` | `S/N102019100001698` — only this device may push |
+| `BIOMETRIC_OFFICE_IP_FILE` | `/home/deploy/hr_office_ip` — office IP the firewall allows (see Firewall) |
 
 ---
 
@@ -183,5 +190,4 @@ separate database dump job. Take a manual dump (above) before risky changes.
 ## 9. Open items
 - Rotate the Hostinger FTP password (was committed to this public repo in the old plan) and update
   `FTP_PASSWORD` in `server/.env`; consider making the GitHub repo private.
-- Confirm whether the office public IP is static.
 - Decommission the Vercel project `auto-hr-api` (its daily cron still runs against the old Hostinger DB).
