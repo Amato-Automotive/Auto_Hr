@@ -53,7 +53,6 @@ export const BiometricDeviceCard: React.FC = () => {
 
   const device = status?.devices[0];
   const online = Boolean(device?.lastSeenAt && Date.now() - new Date(device.lastSeenAt).getTime() < ONLINE_WITHIN_MS);
-  const unmappedPunches = status?.unmappedUsers.reduce((sum, u) => sum + u.punches, 0) ?? 0;
 
   return (
     <div className="bg-white rounded-[32px] p-6 border border-orange-100/50 shadow-card">
@@ -110,32 +109,20 @@ export const BiometricDeviceCard: React.FC = () => {
             </div>
           </div>
 
-          {status.unmappedUsers.length > 0 && (
-            <div className="mt-4 p-4 rounded-2xl border border-amber-200 bg-amber-50/60">
-              <p className="text-xs font-bold text-amber-800">
-                {status.unmappedUsers.length} device ID(s) not linked to any employee — {unmappedPunches} punch(es) waiting.
-              </p>
-              <p className="text-[11px] text-amber-700 mt-1">
-                Set each person's <strong>Biometric ID</strong> on their employee profile, then press Link punches to build their attendance.
-              </p>
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {status.unmappedUsers.map((u) => (
-                  <span key={u.biometricUserId} className="px-2 py-1 rounded-lg bg-white border border-amber-200 text-[11px] font-bold text-amber-800">
-                    ID {u.biometricUserId} · {u.punches}
-                  </span>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={handleReprocess}
-                disabled={reprocessing}
-                className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#f46617] text-white text-xs font-bold hover:bg-[#d85512] disabled:opacity-60 transition-colors"
-              >
-                <Link2 className="w-3.5 h-3.5" />
-                {reprocessing ? 'Linking…' : 'Link punches'}
-              </button>
-            </div>
-          )}
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-[11px] text-slate-500">
+              Added a new employee? Set their <strong>Biometric ID</strong> on their profile, then press Link punches to build their past attendance.
+            </p>
+            <button
+              type="button"
+              onClick={handleReprocess}
+              disabled={reprocessing}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#f46617] text-white text-xs font-bold hover:bg-[#d85512] disabled:opacity-60 transition-colors flex-shrink-0"
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              {reprocessing ? 'Linking…' : 'Link punches'}
+            </button>
+          </div>
         </>
       )}
     </div>
