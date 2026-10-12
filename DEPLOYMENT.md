@@ -163,9 +163,8 @@ mysqldump --defaults-extra-file=<(printf '[client]\nuser=hr_user\npassword=%s\n'
   --single-transaction hr_portal > ~/hr_backup_$(date +%F).sql
 ```
 
-**Daily automatic backup:** `deploy`'s crontab runs `~/bin/hr_backup.sh` at 21:00 UTC (02:30 IST) →
-`~/backups/hr/hr_portal_YYYY-MM-DD.sql.gz`, keeping 14 days (log: `~/backups/hr/backup.log`).
-Backups are still only on the VPS — copying them off the server is an open item.
+**Daily automatic backup:** handled by the VPS provider's own 24-hourly server backup; there is no
+separate database dump job. Take a manual dump (above) before risky changes.
 
 ---
 
@@ -185,5 +184,4 @@ Backups are still only on the VPS — copying them off the server is an open ite
 - Rotate the Hostinger FTP password (was committed to this public repo in the old plan) and update
   `FTP_PASSWORD` in `server/.env`; consider making the GitHub repo private.
 - Confirm whether the office public IP is static.
-- Copy the daily DB backups off the VPS (§7).
 - Decommission the Vercel project `auto-hr-api` (its daily cron still runs against the old Hostinger DB).
