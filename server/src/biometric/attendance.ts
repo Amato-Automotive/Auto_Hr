@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client';
 import prisma from '../config/db.js';
 import type { TimeLog } from './protocol.js';
 
@@ -61,27 +60,23 @@ export async function savePunch(deviceId: number, log: TimeLog): Promise<SavedPu
     const employeeId = employee?.id ?? null;
     const wallClockAsUtc = new Date(`${log.date}T${log.time}.000Z`).getTime();
 
-    try {
-        await prisma.biometricPunch.create({
-            data: {
-                deviceId,
-                transId: log.transId,
-                biometricUserId: log.userId,
-                employeeId,
-                punchDate: dateOnly(log.date),
-                punchTime: log.time,
-                punchedAt: new Date(wallClockAsUtc - IST_OFFSET_MS),
-                attendStat: log.attendStat,
-                verifyMode: log.verifyMode,
-            },
-        });
-        return { duplicate: false, employeeId, date: log.date };
-    } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-            return { duplicate: true, employeeId, date: log.date };
-        }
-        throw error;
-    }
+    // The device routinely sends a record twice; skipDuplicates makes the repeat a silent no-op
+    // (count 0) instead of a unique-constraint error that Prisma would log every time.
+    const { count } = await prisma.biometricPunch.createMany({
+        data: [{
+            deviceId,
+            transId: log.transId,
+            biometricUserId: log.userId,
+            employeeId,
+            punchDate: dateOnly(log.date),
+            punchTime: log.time,
+            punchedAt: new Date(wallClockAsUtc - IST_OFFSET_MS),
+            attendStat: log.attendStat,
+            verifyMode: log.verifyMode,
+        }],
+        skipDuplicates: true,
+    });
+    return { duplicate: count === 0, employeeId, date: log.date };
 }
 
 // ─── Daily attendance ────────────────────────────────────────
