@@ -25,8 +25,8 @@ router.use(authenticate, scopeData);
 const manualEntrySchema = z.object({
     employeeId: z.number().int().positive(),
     date: z.string().min(1),
-    checkIn: z.string().optional(),
-    checkOut: z.string().optional(),
+    checkIn: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Check-in must be HH:MM').or(z.literal('')).optional(),
+    checkOut: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Check-out must be HH:MM').or(z.literal('')).optional(),
     status: z.enum(['PRESENT', 'ABSENT', 'HALF_DAY', 'ON_LEAVE', 'HOLIDAY', 'WFH', 'ON_DUTY', 'CLIENT_VISIT', 'BUSINESS_TRAVEL']).optional(),
 });
 
@@ -51,6 +51,28 @@ function calculateWorkingHours(checkIn?: string | null, checkOut?: string | null
     const minutes = Math.floor((difference % 3600) / 60);
     const seconds = difference % 60;
     return [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':');
+/**
+ * Reads the Date cell of an attendance sheet as YYYY-MM-DD. Accepts Excel serial numbers,
+ * YYYY-MM-DD and DD-MM-YYYY / DD/MM/YYYY (the Indian order — never read as US month-first).
+ */
+function parseSheetDate(value: unknown): string | null {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        // Excel serial: days since 1899-12-30.
+        return new Date(Math.round((value - 25569) * 86_400_000)).toISOString().slice(0, 10);
+    }
+    const text = String(value ?? '').trim();
+    let year: number, month: number, day: number;
+    let match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (match) {
+        [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+    } else if ((match = text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/))) {
+        [day, month, year] = [Number(match[1]), Number(match[2]), Number(match[3])];
+    } else {
+        return null;
+    }
+    const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const parsed = new Date(`${iso}T00:00:00.000Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === iso ? iso : null;
 }
 
 
@@ -319,7 +341,9 @@ router.get(
 
         for (const day of days) {
             const dateStr = day.toISOString().split('T')[0]!;
-            const isWeekend = day.getUTCDay() === 0 || day.getUTCDay() === 6;
+            // Sunday is the weekly off; Saturday is a work-from-home day (no punch expected).
+            const isSunday = day.getUTCDay() === 0;
+            const isSaturday = day.getUTCDay() === 6;
             const dbRecord = dbAttendanceMap.get(dateStr);
 
             if (dbRecord) {
@@ -340,7 +364,7 @@ router.get(
                     isGraceLate: false,
                 });
             } else {
-                if (isWeekend) continue;
+                if (isSunday) continue;
 
                 const holidayName = holidayMap.get(dateStr);
                 const leaveType = getApprovedLeaveType(dateStr);
@@ -395,7 +419,7 @@ router.get(
                         lateBy: null,
                         overtime: false,
                         otTime: null,
-                        status: 'ABSENT',
+                        status: isSaturday ? 'WFH' : 'ABSENT',
                         isVirtual: true,
                         isGraceLate: false,
                     });
@@ -520,42 +544,37 @@ router.post(
         const unmapped = processed.length - validProcessed.length;
 
         let inserted = 0;
-        let skipped = 0;
 
         if (validProcessed.length > 0) {
-            try {
-                await prisma.$transaction(async (tx) => {
-                    const deleteConditions = validProcessed.map(r => ({
+            await prisma.$transaction(async (tx) => {
+                const deleteConditions = validProcessed.map(r => ({
+                    employeeId: bioToEmpId.get(r.biometricId)!,
+                    date: new Date(r.date),
+                }));
+
+                await tx.attendance.deleteMany({
+                    where: {
+                        OR: deleteConditions,
+                    },
+                });
+
+                await tx.attendance.createMany({
+                    data: validProcessed.map(r => ({
                         employeeId: bioToEmpId.get(r.biometricId)!,
                         date: new Date(r.date),
-                    }));
-
-                    await tx.attendance.deleteMany({
-                        where: {
-                            OR: deleteConditions,
-                        },
-                    });
-
-                    await tx.attendance.createMany({
-                        data: validProcessed.map(r => ({
-                            employeeId: bioToEmpId.get(r.biometricId)!,
-                            date: new Date(r.date),
-                            day: r.day,
-                            checkIn: r.checkIn,
-                            checkOut: r.checkOut,
-                            totalWorkingHours: r.totalWorkingHours,
-                            isLate: r.isLate,
-                            lateBy: r.lateBy,
-                            overtime: r.overtime,
-                            otTime: r.otTime,
-                            status: 'PRESENT',
-                        })),
-                    });
+                        day: r.day,
+                        checkIn: r.checkIn,
+                        checkOut: r.checkOut,
+                        totalWorkingHours: r.totalWorkingHours,
+                        isLate: r.isLate,
+                        lateBy: r.lateBy,
+                        overtime: r.overtime,
+                        otTime: r.otTime,
+                        status: 'PRESENT',
+                    })),
                 });
-                inserted = validProcessed.length;
-            } catch (err) {
-                skipped = validProcessed.length;
-            }
+            });
+            inserted = validProcessed.length;
         }
 
         res.json({
@@ -565,7 +584,7 @@ router.post(
                 totalRecords: records.length,
                 processedDays: processed.length,
                 inserted,
-                skipped,
+                skipped: 0,
                 unmappedEmployees: unmapped,
             },
         });
@@ -594,12 +613,8 @@ router.post(
 
         if (targetMonth) {
             const [year, month] = targetMonth.split('-').map(Number);
-            rows = rows.filter(row => {
-                const dateStr = String(row['Date'] || '');
-                if (!dateStr) return false;
-                const d = new Date(dateStr);
-                return d.getFullYear() === year && (d.getMonth() + 1) === month;
-            });
+            const prefix = `${year}-${String(month).padStart(2, '0')}`;
+            rows = rows.filter(row => parseSheetDate(row['Date'])?.startsWith(prefix));
             if (rows.length === 0) {
                 throw new BadRequestError(`No records found in Excel matching target month: ${targetMonth}`);
             }
@@ -617,7 +632,7 @@ router.post(
         for (const row of rows) {
             const bioId = Number(row['ID']);
             const empId = bioToEmpId.get(bioId);
-            const dateStr = String(row['Date'] || '');
+            const dateStr = parseSheetDate(row['Date']);
 
             if (!empId || !dateStr) {
                 skipped++;
@@ -626,53 +641,54 @@ router.post(
 
             validRows.push({
                 empId,
-                date: new Date(dateStr),
+                date: new Date(`${dateStr}T00:00:00.000Z`),
                 row,
             });
         }
 
+        // The same employee/date twice in one sheet would break the bulk insert — keep the last row.
+        const lastRowByKey = new Map(validRows.map(vr => [`${vr.empId}|${vr.date.toISOString()}`, vr]));
+        skipped += validRows.length - lastRowByKey.size;
+        validRows.splice(0, validRows.length, ...lastRowByKey.values());
+
         let inserted = 0;
 
         if (validRows.length > 0) {
-            try {
-                await prisma.$transaction(async (tx) => {
-                    const deleteConditions = validRows.map(vr => ({
-                        employeeId: vr.empId,
-                        date: vr.date,
-                    }));
+            await prisma.$transaction(async (tx) => {
+                const deleteConditions = validRows.map(vr => ({
+                    employeeId: vr.empId,
+                    date: vr.date,
+                }));
 
-                    await tx.attendance.deleteMany({
-                        where: {
-                            OR: deleteConditions,
-                        },
-                    });
-
-                    await tx.attendance.createMany({
-                        data: validRows.map(vr => {
-                            const row = vr.row;
-                            const inTime = String(row['IN'] || '');
-                            const remark = String(row['Remark'] || '');
-                            const ot = String(row['Overtime'] || '');
-                            return {
-                                employeeId: vr.empId,
-                                date: vr.date,
-                                day: String(row['Day'] || ''),
-                                checkIn: inTime || null,
-                                checkOut: String(row['OUT'] || '') || null,
-                                totalWorkingHours: String(row['Total working Hours'] || '') || null,
-                                isLate: remark.toLowerCase().includes('late'),
-                                lateBy: String(row['Late By'] || '') || null,
-                                overtime: ot.toLowerCase() === 'yes',
-                                otTime: String(row['OT time'] || '') || null,
-                                status: inTime ? 'PRESENT' : 'ABSENT',
-                            };
-                        }),
-                    });
+                await tx.attendance.deleteMany({
+                    where: {
+                        OR: deleteConditions,
+                    },
                 });
-                inserted = validRows.length;
-            } catch (err) {
-                skipped += validRows.length;
-            }
+
+                await tx.attendance.createMany({
+                    data: validRows.map(vr => {
+                        const row = vr.row;
+                        const inTime = String(row['IN'] || '');
+                        const remark = String(row['Remark'] || '');
+                        const ot = String(row['Overtime'] || '');
+                        return {
+                            employeeId: vr.empId,
+                            date: vr.date,
+                            day: String(row['Day'] || ''),
+                            checkIn: inTime || null,
+                            checkOut: String(row['OUT'] || '') || null,
+                            totalWorkingHours: String(row['Total working Hours'] || '') || null,
+                            isLate: remark.toLowerCase().includes('late'),
+                            lateBy: String(row['Late By'] || '') || null,
+                            overtime: ot.toLowerCase() === 'yes',
+                            otTime: String(row['OT time'] || '') || null,
+                            status: inTime ? 'PRESENT' : 'ABSENT',
+                        };
+                    }),
+                });
+            });
+            inserted = validRows.length;
         }
 
         res.json({
@@ -786,8 +802,31 @@ router.post(
     asyncHandler(async (req, res) => {
         const { employeeId, date, checkIn, checkOut, status } = req.body as z.infer<typeof manualEntrySchema>;
 
-        const dateObj = new Date(date);
+        const dateObj = new Date(`${date.slice(0, 10)}T00:00:00.000Z`);
+        if (Number.isNaN(dateObj.getTime())) throw new BadRequestError('Date must be YYYY-MM-DD');
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        // Times as HH:MM:SS so they compare and display like device punches.
+        const normalizeTime = (value?: string) => (value ? (value.length === 5 ? `${value}:00` : value) : null);
+        const inTime = normalizeTime(checkIn);
+        const outTime = normalizeTime(checkOut);
+        const finalStatus = status || 'PRESENT';
+
+        // Recomputed from the new times, so values from an earlier punch/upload don't linger.
+        const toSeconds = (hms: string) => hms.split(':').map(Number).reduce((total, part, index) => total + part * [3600, 60, 1][index]!, 0);
+        const toHms = (secs: number) => [Math.floor(secs / 3600), Math.floor((secs % 3600) / 60), secs % 60].map(v => String(v).padStart(2, '0')).join(':');
+        const lateSecs = inTime && finalStatus === 'PRESENT' ? toSeconds(inTime) - toSeconds('09:30:00') : 0;
+        const otSecs = outTime ? toSeconds(outTime) - toSeconds('18:00:00') : 0;
+        const derived = {
+            checkIn: inTime,
+            checkOut: outTime,
+            status: finalStatus,
+            totalWorkingHours: calculateWorkingHours(inTime, outTime),
+            isLate: lateSecs > 0,
+            lateBy: lateSecs > 0 ? `${Math.floor(lateSecs / 60)} mins` : null,
+            overtime: otSecs > 0,
+            otTime: otSecs > 0 ? toHms(otSecs) : null,
+        };
 
         const attendance = await prisma.attendance.upsert({
             where: {
@@ -796,18 +835,12 @@ router.post(
                     date: dateObj,
                 },
             },
-            update: {
-                checkIn: checkIn || null,
-                checkOut: checkOut || null,
-                status: status || 'PRESENT',
-            },
+            update: derived,
             create: {
                 employeeId,
                 date: dateObj,
-                day: days[dateObj.getDay()] || '',
-                checkIn: checkIn || null,
-                checkOut: checkOut || null,
-                status: status || 'PRESENT',
+                day: days[dateObj.getUTCDay()] || '',
+                ...derived,
             },
         });
 
