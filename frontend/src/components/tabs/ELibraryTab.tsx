@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { libraryApi, type LibraryDocument, type UserRole } from '../../services/api';
 import { LibraryDocumentViewer } from '../LibraryDocumentViewer';
+import { useAuth } from '../../context/AuthContext';
 
 const MANAGEMENT_ROLES: UserRole[] = ['HR', 'LEADERSHIP', 'MANAGER'];
 
@@ -37,7 +38,10 @@ interface ELibraryTabProps {
 }
 
 export const ELibraryTab: React.FC<ELibraryTabProps> = ({ role }) => {
+  const { user } = useAuth();
   const canManage = MANAGEMENT_ROLES.includes(role);
+  // HR can remove anything; managers/leadership only what they uploaded (the API enforces this too).
+  const canDelete = (document: LibraryDocument) => role === 'HR' || (canManage && document.uploadedById === user?.id);
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -279,7 +283,7 @@ export const ELibraryTab: React.FC<ELibraryTabProps> = ({ role }) => {
                           {busyId === document.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                           Download
                         </button>
-                        {canManage && (
+                        {canDelete(document) && (
                           <button
                             type="button"
                             onClick={() => handleDelete(document)}

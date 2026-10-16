@@ -77,6 +77,39 @@ export async function putUploadFile(relativePath: string, buffer: Buffer): Promi
     return putLocal(relativePath, buffer);
 }
 
+/**
+ * Deletes a public asset given the URL `putUploadFile` returned. URLs that don't belong to the
+ * configured storage (e.g. pasted links) are ignored.
+ */
+export async function removeUploadFile(publicUrl: string): Promise<void> {
+    const prefix = env.UPLOAD_STORAGE_DRIVER === 'hostinger-ftp'
+        ? `${env.UPLOAD_PUBLIC_BASE_URL.replace(/\/$/, '')}/`
+        : '/uploads/';
+    if (!publicUrl.startsWith(prefix)) return;
+    const relativePath = publicUrl.slice(prefix.length);
+    if (!relativePath || relativePath.split('/').includes('..')) return;
+
+    if (env.UPLOAD_STORAGE_DRIVER !== 'hostinger-ftp') {
+        await rm(path.join(LOCAL_UPLOAD_ROOT, relativePath), { force: true });
+        return;
+    }
+
+    const client = new FtpClient();
+    client.ftp.verbose = false;
+    try {
+        await client.access({
+            host: env.FTP_HOST,
+            port: env.FTP_PORT,
+            user: env.FTP_USER,
+            password: env.FTP_PASSWORD,
+            secure: env.FTP_SECURE,
+        });
+        await client.remove(path.posix.join(env.FTP_REMOTE_ROOT, relativePath));
+    } finally {
+        client.close();
+    }
+}
+
 async function putPrivateLocal(relativePath: string, buffer: Buffer): Promise<void> {
     const absolutePath = path.join(LOCAL_PRIVATE_ROOT, relativePath);
     await mkdir(path.dirname(absolutePath), { recursive: true });

@@ -6,9 +6,9 @@ import prisma from '../config/db.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { NotFoundError, BadRequestError } from '../utils/errors.js';
+import { NotFoundError, BadRequestError, ForbiddenError } from '../utils/errors.js';
 import { notify, getAudienceUserIds } from '../utils/notificationService.js';
-import { putUploadFile, extensionForMimeType } from '../utils/uploadStorage.js';
+import { putUploadFile, removeUploadFile, extensionForMimeType } from '../utils/uploadStorage.js';
 
 const router = Router();
 const upload = multer({
@@ -58,6 +58,7 @@ router.get(
                     sizeBytes: d.sizeBytes,
                     createdAt: d.createdAt,
                     uploadedBy: d.uploadedBy,
+                    uploadedById: d.uploadedById,
                     isRead: d.reads.length > 0,
                     readCount: d._count.reads,
                 })),
@@ -117,6 +118,7 @@ router.post(
                     mimeType: document.mimeType,
                     sizeBytes: document.sizeBytes,
                     createdAt: document.createdAt,
+                    uploadedById: document.uploadedById,
                     isRead: false,
                     readCount: 0,
                 },
@@ -181,8 +183,17 @@ router.delete(
 
         const document = await prisma.libraryDocument.findUnique({ where: { id } });
         if (!document) throw new NotFoundError('Document not found');
+        // HR curates the whole library; managers/leadership can only remove what they uploaded.
+        if (req.user!.role !== 'HR' && document.uploadedById !== req.user!.userId) {
+            throw new ForbiddenError('You can only remove documents you uploaded');
+        }
 
         await prisma.libraryDocument.delete({ where: { id } });
+        if (document.contentUrl) {
+            await removeUploadFile(document.contentUrl).catch((error) =>
+                console.error(`Library document ${id}: stored file not removed:`, error)
+            );
+        }
 
         res.json({ success: true, message: 'Document removed' });
     })

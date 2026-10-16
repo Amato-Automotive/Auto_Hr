@@ -9,6 +9,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { NotFoundError, BadRequestError } from '../utils/errors.js';
 import { classifyLink } from '../utils/linkEmbed.js';
 import { putUploadFile, extensionForMimeType } from '../utils/uploadStorage.js';
+import { mapWithConcurrency } from '../utils/concurrency.js';
 import { deliverAnnouncementEmail, notifyAnnouncementPublished } from '../utils/announcementScheduler.js';
 
 const router = Router();
@@ -109,9 +110,17 @@ router.get(
         });
 
         const isScheduledForFuture = announcement?.scheduledAt && announcement.scheduledAt > new Date();
-        const canPreviewScheduled = req.user!.role === 'HR';
-        if (!announcement || !announcement.isActive || (isScheduledForFuture && !canPreviewScheduled)) {
+        const isExpired = announcement?.expiresAt && announcement.expiresAt < new Date();
+        const isHR = req.user!.role === 'HR';
+        if (!announcement || !announcement.isActive || ((isScheduledForFuture || isExpired) && !isHR)) {
             throw new NotFoundError('Announcement not found');
+        }
+        // Same audience rule as the list: a department-targeted announcement is only for that department.
+        if (announcement.targetDepartment && !FULL_VISIBILITY_ROLES.includes(req.user!.role)) {
+            const viewerDepartment = await getViewerDepartment(req.user!.role, req.user!.employeeId);
+            if (viewerDepartment !== announcement.targetDepartment) {
+                throw new NotFoundError('Announcement not found');
+            }
         }
 
         res.json({ success: true, data: { announcement } });
@@ -166,8 +175,9 @@ router.post(
 
         const files = (req.files as Express.Multer.File[] | undefined) || [];
 
-        const uploadedMedia = await Promise.all(
-            files.map(async (file, index) => {
+        // Two at a time: each upload opens its own FTP connection, and Hostinger refuses too many at once.
+        const uploadedMedia = await mapWithConcurrency(
+            files, 2, async (file, index) => {
                 const extension = extensionForMimeType(file.mimetype);
                 const url = await putUploadFile(`announcements/${randomUUID()}.${extension}`, file.buffer);
                 return {
@@ -176,7 +186,7 @@ router.post(
                     isDownloadable: downloadableFlags[index] === true,
                     sortOrder: index,
                 };
-            })
+            }
         );
 
         const announcement = await prisma.announcement.create({

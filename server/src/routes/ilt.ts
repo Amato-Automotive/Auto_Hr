@@ -237,15 +237,18 @@ router.post(
         const existing = await prisma.iLTRegistration.findUnique({
             where: { sessionId_employeeId: { sessionId, employeeId } },
         });
-        if (existing) {
+        if (existing && existing.status !== 'CANCELLED') {
             res.json({ success: true, data: { registration: existing }, message: 'Already registered' });
             return;
         }
 
         const isFull = session.registrations.length >= session.capacity;
-        const registration = await prisma.iLTRegistration.create({
-            data: { sessionId, employeeId, status: isFull ? 'WAITLISTED' : 'REGISTERED' },
-        });
+        const status = isFull ? 'WAITLISTED' : 'REGISTERED';
+        // Someone who cancelled earlier re-uses their row (one per session/employee), joining the
+        // back of the waitlist rather than keeping their old place.
+        const registration = existing
+            ? await prisma.iLTRegistration.update({ where: { id: existing.id }, data: { status, registeredAt: new Date() } })
+            : await prisma.iLTRegistration.create({ data: { sessionId, employeeId, status } });
 
         res.status(201).json({
             success: true,

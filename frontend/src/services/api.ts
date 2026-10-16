@@ -978,6 +978,7 @@ export interface LibraryDocument {
     sizeBytes: number;
     createdAt: string;
     uploadedBy?: { username: string };
+    uploadedById?: number;
     isRead: boolean;
     readCount: number;
 }
