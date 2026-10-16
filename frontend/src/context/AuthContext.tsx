@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authApi, type AuthUser } from '../services/api';
+import { authApi, AUTH_EXPIRED_EVENT, type AuthUser } from '../services/api';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -53,6 +53,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     checkAuth();
+  }, []);
+
+  // Any API call answered 401 (token expired, account deactivated) ends the session.
+  useEffect(() => {
+    const onExpired = () => {
+      setUser(null);
+      setIsLoggedIn(false);
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {

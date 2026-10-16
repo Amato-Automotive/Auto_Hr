@@ -13,6 +13,15 @@ interface ApiResponse<T = unknown> {
     message?: string;
 }
 
+/** Fired when the API rejects the stored token; AuthContext logs the user out. */
+export const AUTH_EXPIRED_EVENT = 'auth:expired';
+
+function describeHttpFailure(status: number): string {
+    if (status === 413) return 'That file is too large to upload.';
+    if (status === 502 || status === 503 || status === 504) return 'The server is restarting or unreachable. Please try again in a minute.';
+    return `Request failed with status ${status}`;
+}
+
 async function request<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -38,10 +47,19 @@ async function request<T>(
         credentials: 'include',
     });
 
-    const json = await response.json() as ApiResponse<T>;
+    // nginx answers some failures with an HTML page (413 file too large, 502 while the API restarts).
+    const json = await response.json().catch(() => null) as ApiResponse<T> | null;
 
     if (!response.ok) {
-        throw new Error(json.error || `Request failed with status ${response.status}`);
+        // Session expired or account deactivated: let AuthContext send the user back to login.
+        if (response.status === 401 && token && !endpoint.startsWith('/auth/login')) {
+            localStorage.removeItem('token');
+            window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+        }
+        throw new Error(json?.error || describeHttpFailure(response.status));
+    }
+    if (!json) {
+        throw new Error('The server sent an unexpected response. Please try again.');
     }
 
     return json;

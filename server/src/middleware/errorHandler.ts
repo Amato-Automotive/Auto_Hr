@@ -1,6 +1,33 @@
 import { Request, Response, NextFunction } from 'express';
+import multer from 'multer';
+import { ZodError } from 'zod';
+import { Prisma } from '@prisma/client';
 import { AppError } from '../utils/errors.js';
 import { isProd } from '../config/env.js';
+
+/**
+ * Expected failures that aren't AppErrors (DB constraints, upload limits, bad input) get a
+ * clear message and status instead of a generic 500.
+ */
+function toClientError(err: Error): { status: number; message: string } | null {
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (err.code === 'P2002') return { status: 409, message: 'That value is already in use by another record' };
+        if (err.code === 'P2025') return { status: 404, message: 'The record was not found — it may have been deleted' };
+        if (err.code === 'P2003') return { status: 400, message: 'This refers to a record that does not exist' };
+    }
+    if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') return { status: 413, message: 'That file is too large to upload' };
+        return { status: 400, message: `Upload rejected: ${err.message}` };
+    }
+    if (err instanceof ZodError) {
+        return { status: 400, message: `Validation failed: ${err.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')}` };
+    }
+    // body-parser failures (malformed JSON, body over the 10 MB limit)
+    const bodyErrorType = (err as { type?: string }).type;
+    if (bodyErrorType === 'entity.parse.failed') return { status: 400, message: 'Malformed request body' };
+    if (bodyErrorType === 'entity.too.large') return { status: 413, message: 'Request is too large' };
+    return null;
+}
 
 /**
  * Centralized error handling middleware.
@@ -23,6 +50,12 @@ export function errorHandler(
             success: false,
             error: err.message,
         });
+        return;
+    }
+
+    const clientError = toClientError(err);
+    if (clientError) {
+        res.status(clientError.status).json({ success: false, error: clientError.message });
         return;
     }
 

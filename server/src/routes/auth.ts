@@ -23,9 +23,13 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1 *
 // shared-office / VPN environment where many users log in from
 // the same exit IP within a 15-minute window.
 
+// Only failed attempts count, and per username + IP: the whole office shares one exit IP, so a
+// morning login rush (all successful) or one person mistyping can't lock everyone else out.
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 30,
+    max: 10,
+    skipSuccessfulRequests: true,
+    keyGenerator: (req) => `${req.ip ?? ''}|${String(req.body?.username ?? '').toLowerCase()}`,
     standardHeaders: true,
     legacyHeaders: false,
     message: {

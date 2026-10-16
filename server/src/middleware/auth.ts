@@ -17,8 +17,9 @@ declare global {
 
 /**
  * Authentication middleware.
- * Validates JWT from Authorization header or httpOnly cookie.
- * Attaches user payload to req.user.
+ * Validates JWT from Authorization header or httpOnly cookie, then re-reads the account so a
+ * deactivated user is locked out immediately and a role change applies without re-login.
+ * Attaches the current user to req.user.
  */
 export function authenticate(
     req: Request,
@@ -44,8 +45,19 @@ export function authenticate(
         throw new UnauthorizedError('Invalid or expired token');
     }
 
-    req.user = payload;
-    next();
+    prisma.user
+        .findUnique({
+            where: { id: payload.userId },
+            select: { role: true, isActive: true, employeeId: true, employee: { select: { isActive: true } } },
+        })
+        .then((account) => {
+            if (!account || !account.isActive || (account.employee && !account.employee.isActive)) {
+                throw new UnauthorizedError('Your account is no longer active');
+            }
+            req.user = { userId: payload.userId, role: account.role, employeeId: account.employeeId };
+            next();
+        })
+        .catch(next);
 }
 
 /**
