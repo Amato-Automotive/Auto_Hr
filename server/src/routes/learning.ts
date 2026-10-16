@@ -24,6 +24,13 @@ router.use(authenticate, scopeData);
 
 // ─── Validation schemas ──────────────────────────────────────
 
+// Course/path create forms are multipart, so booleans arrive as the text "true"/"false".
+// z.coerce.boolean() would turn "false" into true (any non-empty string is truthy).
+const formBoolean = z.preprocess(
+    (value) => (value === 'true' ? true : value === 'false' ? false : value),
+    z.boolean()
+);
+
 const createCourseSchema = z.object({
     title: z.string().min(1, 'Title is required').max(255),
     description: z.string().optional(),
@@ -31,18 +38,18 @@ const createCourseSchema = z.object({
     skillTags: z.string().max(500).optional(),
     durationMinutes: z.coerce.number().int().nonnegative().optional(),
     language: z.string().max(50).optional(),
-    mandatory: z.coerce.boolean().optional(),
+    mandatory: formBoolean.optional(),
     targetDepartment: z.string().max(100).optional(),
     navigationMode: z.enum(['FREE', 'SEQUENTIAL']).optional(),
-    autoAssign: z.coerce.boolean().optional(),
+    autoAssign: formBoolean.optional(),
     autoAssignDueDays: z.coerce.number().int().positive().optional(),
     certificateValidityMonths: z.coerce.number().int().positive().optional(),
-    enableRanking: z.coerce.boolean().optional(),
+    enableRanking: formBoolean.optional(),
     rankingScope: z.enum(['DEPARTMENT', 'ORG_WIDE']).optional(),
-    rankingAnonymous: z.coerce.boolean().optional(),
+    rankingAnonymous: formBoolean.optional(),
     rankingMinCohortSize: z.coerce.number().int().positive().optional(),
-    requiresApproval: z.coerce.boolean().optional(),
-    certificatesPerModule: z.coerce.boolean().optional(),
+    requiresApproval: formBoolean.optional(),
+    certificatesPerModule: formBoolean.optional(),
 });
 
 const updateCourseSchema = z.object({
@@ -1624,7 +1631,7 @@ router.get(
 
 // ─── POST /api/learning/enrollments/:id/renew ───────────────────
 // Learner retakes a course whose certificate has expired (or is expiring): resets their own
-// completed enrollment back to NOT_STARTED, wiping module progress and the old certificate, so
+// completed enrollment back to NOT_STARTED, wiping module progress, quiz attempts and the old certificate, so
 // the unique (courseId, employeeId) constraint can issue a fresh certificate on re-completion.
 
 router.post(
@@ -1647,6 +1654,10 @@ router.post(
 
         await prisma.$transaction([
             prisma.moduleProgress.deleteMany({ where: { enrollmentId: id } }),
+            // Old attempts would still count against maxAttempts and could block passing the retake.
+            prisma.quizAttempt.deleteMany({
+                where: { employeeId: enrollment.employeeId, quiz: { module: { courseId: enrollment.courseId } } },
+            }),
             ...(enrollment.certificates.length > 0 ? [prisma.certificate.deleteMany({ where: { enrollmentId: id } })] : []),
             prisma.enrollment.update({
                 where: { id },
@@ -1669,10 +1680,10 @@ router.post(
 const createPathSchema = z.object({
     title: z.string().min(1, 'Title is required').max(255),
     description: z.string().optional(),
-    mandatory: z.coerce.boolean().optional(),
+    mandatory: formBoolean.optional(),
     targetDepartment: z.string().max(100).optional(),
     navigationMode: z.enum(['FREE', 'SEQUENTIAL']).optional(),
-    requiresApproval: z.coerce.boolean().optional(),
+    requiresApproval: formBoolean.optional(),
 });
 
 const updatePathSchema = z.object({

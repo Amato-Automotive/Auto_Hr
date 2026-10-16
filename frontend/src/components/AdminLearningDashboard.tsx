@@ -101,7 +101,7 @@ export const AdminLearningDashboard: React.FC<{ filters?: PageFilterState }> = (
     ? teams.filter(t => matchesSearch(filters.search, [t.managerName, t.total, t.completed, t.inProgress, t.overdue, t.completionRate]))
     : teams;
   const filteredMembers = filters
-    ? members.filter(m => matchesSearch(filters.search, [m.employee.name, m.employee.department, m.employee.position, m.total, m.completed, m.inProgress, m.overdue, m.completionRate]))
+    ? members.filter(m => matchesSearch(filters.search, [m.name, m.position, m.total, m.completed, m.inProgress, m.overdue, m.completionRate]))
     : members;
 
   return (
