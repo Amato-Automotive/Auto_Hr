@@ -11,7 +11,6 @@ import {
   leaveApi,
   authApi,
   type EmployeeDetail,
-  type EmployeeMutationPayload,
   type Leave,
   type UserRole,
 } from '../services/api';
@@ -766,7 +765,7 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
                 ) : (
                   <input
                     type={f.type || 'text'}
-                    value={form[f.key as keyof typeof form] ?? ''}
+                    value={String(form[f.key as keyof typeof form] ?? '')}
                     onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                     className="w-full bg-white text-slate-800 text-sm rounded-xl px-3.5 py-2.5 border border-orange-100 focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange transition-all"
                   />

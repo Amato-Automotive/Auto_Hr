@@ -205,7 +205,7 @@ export const employeeApi = {
         }),
 
     approversList: () =>
-        request<{ approvers: { userId: number; employeeId: number; name: string; role: string; position: string | null; department: string | null }[] }>('/employees/approvers/list'),
+        request<{ approvers: { userId: number; employeeId: number; name: string; role: UserRole; position: string | null; department: string | null }[] }>('/employees/approvers/list'),
 };
 
 // ─── Leaves ──────────────────────────────────────────────────

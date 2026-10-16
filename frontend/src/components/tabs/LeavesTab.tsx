@@ -758,8 +758,9 @@ const LeavesTab: React.FC<LeavesTabProps> = ({ leaves, employee, isHR: _isHR, on
                         style={{
                           backgroundColor: leaveType === t.value ? t.color : 'transparent',
                           borderColor: t.color,
-                          ringColor: t.color,
-                        }}
+                          // Tailwind's ring-2 reads its colour from this variable.
+                          '--tw-ring-color': t.color,
+                        } as React.CSSProperties}
                       />
                       <div className="flex-1">
                         <span className={`text-sm font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{t.label}</span>

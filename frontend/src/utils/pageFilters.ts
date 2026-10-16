@@ -39,7 +39,7 @@ const toDateParts = (value: string | null | undefined) => {
 
 export const matchesDateFilter = (filters: PageFilterState, values: (string | null | undefined)[]): boolean => {
   if (filters.dateMode === 'ALL') return true;
-  const parts = values.map(toDateParts).filter(Boolean) as ReturnType<typeof toDateParts>[];
+  const parts = values.map(toDateParts).filter(Boolean) as NonNullable<ReturnType<typeof toDateParts>>[];
   if (filters.dateMode === 'DATE') return !filters.date || parts.some(part => part.date === filters.date);
   if (filters.dateMode === 'MONTH') return !filters.month || parts.some(part => part.month === filters.month);
   if (filters.dateMode === 'YEAR') return !filters.year || parts.some(part => part.year === filters.year);
