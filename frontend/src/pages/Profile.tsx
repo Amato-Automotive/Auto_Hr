@@ -79,7 +79,9 @@ export const ProfileView: React.FC<{
   hideBack?: boolean;
   /** Called after HR deactivates or permanently deletes this employee. */
   onEmployeeRemoved?: () => void;
-}> = ({ employeeId, initialTab = 'about', onBack, onOpenEmployee, hideBack = false, onEmployeeRemoved }) => {
+  /** Called after any change saved from this profile, so lists elsewhere on screen can refresh. */
+  onChanged?: () => void;
+}> = ({ employeeId, initialTab = 'about', onBack, onOpenEmployee, hideBack = false, onEmployeeRemoved, onChanged }) => {
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
@@ -102,8 +104,9 @@ export const ProfileView: React.FC<{
     setActiveTab(initialTab);
   }, [initialTab]);
 
-  const loadProfile = async () => {
-    setLoading(true);
+  // `silent` refetches without the full-page spinner, so the open tab (and any edit in progress) stays mounted.
+  const loadProfile = async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const [empRes, leaveRes, perfRes] = await Promise.allSettled([
@@ -129,6 +132,13 @@ export const ProfileView: React.FC<{
     } finally {
       setLoading(false);
     }
+  };
+
+  const reloadAfterChange = async () => {
+    await loadProfile(true);
+    onChanged?.();
+    // The header/sidebar show the signed-in user's name and photo from the auth context.
+    if (user?.employeeId === employeeId) await refreshUser();
   };
 
   const refreshPerformance = async () => {
@@ -330,7 +340,7 @@ export const ProfileView: React.FC<{
 
       {/* Tab Content */}
       <div className="mx-auto px-6 py-6 bg-white">
-        {activeTab === 'about' && <AboutSection employee={employee} isHR={isHR} isOwnProfile={isOwnProfile} onRefresh={loadProfile} onEmployeeRemoved={onEmployeeRemoved} />}
+        {activeTab === 'about' && <AboutSection employee={employee} isHR={isHR} isOwnProfile={isOwnProfile} onRefresh={reloadAfterChange} onEmployeeRemoved={onEmployeeRemoved} />}
         {activeTab === 'performance' && (
           <PerformanceTab
             employeeId={employeeId}
@@ -341,7 +351,7 @@ export const ProfileView: React.FC<{
             theme="light"
           />
         )}
-        {activeTab === 'leaves' && <LeavesTab leaves={leaves} employee={employee} isHR={isHR} onRefresh={loadProfile} theme="light" />}
+        {activeTab === 'leaves' && <LeavesTab leaves={leaves} employee={employee} isHR={isHR} onRefresh={reloadAfterChange} theme="light" />}
         {activeTab === 'attendance' && <AttendanceTab employeeId={employeeId} isHR={isHR} theme="light" />}
         {activeTab === 'documents' && canViewEmployeeDocuments && (
           <EmployeeDocumentsTab employeeId={employeeId} employeeName={employee.name} />
@@ -357,10 +367,7 @@ export const ProfileView: React.FC<{
         {activeTab === 'account' && isOwnProfile && (
           <AccountSettingsSection
             employee={employee}
-            onAvatarUpdated={async () => {
-              await refreshUser();
-              await loadProfile();
-            }}
+            onAvatarUpdated={reloadAfterChange}
           />
         )}
       </div>
@@ -531,6 +538,7 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
       const avatar = response.data?.avatar || null;
       setForm(p => ({ ...p, avatar: avatar || '' }));
       setAvatarStatus('Photo updated successfully');
+      await onRefresh();
     } catch (err: any) {
       console.error('[Profile/AboutSection] avatar:error', err);
       setAvatarStatus(err.message || 'Failed to update photo');
@@ -1325,11 +1333,9 @@ const AccountSettingsSection: React.FC<{
       const response = await authApi.updateAvatar(compressed);
       console.log('[Profile/AccountSettings] avatar:update-response', response);
       setAvatarStatus('Photo updated successfully');
-      await refreshUser();
-      console.log('[Profile/AccountSettings] avatar:refreshUser-complete');
+      // Reloads the profile and the signed-in user (header photo).
       await onAvatarUpdated();
       console.log('[Profile/AccountSettings] avatar:onAvatarUpdated-complete');
-      return response;
     } catch (err: any) {
       console.error('[Profile/AccountSettings] avatar:error', err);
       setAvatarStatus(err.message || 'Failed to update photo');

@@ -10,7 +10,8 @@ export const ProfileDrawer: React.FC<{
   initialTab?: Tab;
   onClose: () => void;
   onEmployeeRemoved?: () => void;
-}> = ({ employeeId, initialTab = 'about', onClose, onEmployeeRemoved }) => {
+  onChanged?: () => void;
+}> = ({ employeeId, initialTab = 'about', onClose, onEmployeeRemoved, onChanged }) => {
   const [currentEmployeeId, setCurrentEmployeeId] = useState(employeeId);
   const [tab, setTab] = useState<Tab>(initialTab);
 
@@ -61,6 +62,7 @@ export const ProfileDrawer: React.FC<{
                 onBack={onClose}
                 onOpenEmployee={(id) => setCurrentEmployeeId(id)}
                 onEmployeeRemoved={onEmployeeRemoved}
+                onChanged={onChanged}
               />
             </div>
           </div>

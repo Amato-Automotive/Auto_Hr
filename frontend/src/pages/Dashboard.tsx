@@ -101,7 +101,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (isLoggedIn) {
-      loadDashboardData();
+      loadDashboardData(true);
     }
   }, [isLoggedIn]);
 
@@ -123,8 +123,10 @@ const Dashboard: React.FC = () => {
     return () => window.clearInterval(interval);
   }, [isLoggedIn]);
 
-  const loadDashboardData = async () => {
-    setDataLoading(true);
+  // Only the first load shows the spinner; refreshes after a save swap the data in place,
+  // so the open panel keeps its filters and scroll position.
+  const loadDashboardData = async (showSpinner = false) => {
+    if (showSpinner) setDataLoading(true);
     try {
       const [empRes, leaveRes, annRes, heroRes, notificationRes] = await Promise.allSettled([
         // Whole directory in one call (the API defaults to 50 per page).
@@ -418,7 +420,7 @@ const Dashboard: React.FC = () => {
                   announcements={announcements}
                   heroBanners={heroBanners}
                   onViewAllAnnouncements={() => setActiveTab('announcements')}
-                  onRefreshAnnouncements={loadDashboardData}
+                  onRefreshAnnouncements={() => loadDashboardData()}
                 />
               )}
               {activeTab === 'employees' && (
@@ -426,13 +428,14 @@ const Dashboard: React.FC = () => {
                   <ProfileView
                     employeeId={user.employeeId}
                     hideBack={true}
+                    onChanged={() => void loadDashboardData()}
                   />
                 ) : (
                   <EmployeesPage
                     employees={employees}
                     role={role}
                     currentEmployeeId={user?.employeeId ?? null}
-                    onRefresh={loadDashboardData}
+                    onRefresh={() => loadDashboardData()}
                     onOpenProfile={(employeeId: number) => setProfileDrawer({ open: true, employeeId, tab: 'about' })}
                   />
                 )
@@ -441,6 +444,7 @@ const Dashboard: React.FC = () => {
                 <ProfileView
                   employeeId={user.employeeId}
                   hideBack={true}
+                  onChanged={() => void loadDashboardData()}
                 />
               )}
               {activeTab === 'announcements' && (
@@ -448,7 +452,7 @@ const Dashboard: React.FC = () => {
                   announcements={announcements}
                   role={role}
                   departments={allDepartments}
-                  onRefresh={loadDashboardData}
+                  onRefresh={() => loadDashboardData()}
                 />
               )}
               {activeTab === 'leaves' && (
@@ -456,7 +460,7 @@ const Dashboard: React.FC = () => {
                   leaves={leaves}
                   role={role}
                   user={user}
-                  onRefresh={loadDashboardData}
+                  onRefresh={() => loadDashboardData()}
                   onOpenApplyLeave={(employeeId: number) => setProfileDrawer({ open: true, employeeId, tab: 'leaves' })}
                 />
               )}
@@ -504,6 +508,7 @@ const Dashboard: React.FC = () => {
           employeeId={profileDrawer.employeeId}
           initialTab={profileDrawer.tab}
           onClose={() => setProfileDrawer({ open: false, employeeId: null, tab: 'about' })}
+          onChanged={() => void loadDashboardData()}
           onEmployeeRemoved={() => {
             setProfileDrawer({ open: false, employeeId: null, tab: 'about' });
             void loadDashboardData();
