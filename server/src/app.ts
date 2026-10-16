@@ -79,7 +79,7 @@ app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 app.get('/api/health', (_req, res) => {
     res.json({
         success: true,
-        message: 'Auto HR API is running',
+        message: 'Autoform Connect API is running',
         environment: env.NODE_ENV,
         timestamp: new Date().toISOString(),
     });

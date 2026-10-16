@@ -21,7 +21,7 @@ const Admin: React.FC = () => {
             draggable={false}
           />
           <h1 className="text-4xl font-script text-slate-800 leading-none">Autoform Connect</h1>
-          <p className="text-slate-500 font-semibold text-xs tracking-wider uppercase mt-1.5 opacity-80">Autoform India HR Portal</p>
+          <p className="text-slate-500 font-semibold text-xs tracking-wider uppercase mt-1.5 opacity-80">Autoform India Employee Portal</p>
         </div>
 
         <div className="bg-white/85 backdrop-blur-xl border border-orange-100 shadow-2xl p-8 rounded-[32px] flex flex-col items-center">
