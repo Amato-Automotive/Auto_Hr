@@ -25,6 +25,7 @@ import { EmployeeAvatar } from '../components/EmployeeAvatar';
 import { AvatarUploadPicker } from '../components/AvatarUploadPicker';
 import { compressAvatarImage } from '../utils/imageCompression';
 import { PayrollDetailsCard } from '../components/PayrollDetailsCard';
+import { LEAVES_ENABLED } from '../utils/features';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { DEPARTMENTS, EMPLOYEE_TYPES, optionsWithCurrent } from '../utils/employeeOptions';
 
@@ -186,7 +187,8 @@ export const ProfileView: React.FC<{
     ...(isOwnProfile && !hideSidebarDuplicates ? [{ id: 'salary' as Tab, label: 'Salary' }] : []),
     { id: 'performance', label: 'Performance' },
     ...(isOwnProfile && hideSidebarDuplicates ? [] : [
-      { id: 'leaves' as Tab, label: 'Leaves' },
+      // Leave management launches next year (utils/features)
+      ...(LEAVES_ENABLED ? [{ id: 'leaves' as Tab, label: 'Leaves' }] : []),
       { id: 'attendance' as Tab, label: 'Attendance' },
     ]),
     ...(canViewEmployeeDocuments ? [{ id: 'documents' as Tab, label: 'Documents' }] : []),

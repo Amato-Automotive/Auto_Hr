@@ -107,7 +107,7 @@ export const MobileTabBar: React.FC<{
                     </span>
                   ) : null}
                 </span>
-                <span className={`text-[10px] font-semibold leading-none ${active ? 'text-[#f46617]' : 'text-slate-500'}`}>{tab.label}</span>
+                <span className={`text-[10px] font-semibold leading-none tracking-tight whitespace-nowrap ${active ? 'text-[#f46617]' : 'text-slate-500'}`}>{tab.label}</span>
               </button>
             );
           })}

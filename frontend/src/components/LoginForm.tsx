@@ -4,6 +4,7 @@ import { Loader2, ArrowRight, User, Lock, Eye, EyeOff, ShieldCheck, Clock, Calen
 import logoImg from '../images/autoform-logo.png';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { DeskIllustration } from './DeskIllustration';
+import { LEAVES_ENABLED } from '../utils/features';
 
 interface LoginFormProps {
   onLoginSuccess?: () => void;
@@ -11,7 +12,7 @@ interface LoginFormProps {
 
 const HIGHLIGHTS = [
   { icon: Clock, label: 'Attendance' },
-  { icon: CalendarCheck, label: 'Leaves' },
+  { icon: CalendarCheck, label: LEAVES_ENABLED ? 'Leaves' : 'Holidays' },
   { icon: Wallet, label: 'Payslips' },
   { icon: GraduationCap, label: 'Learning' },
 ];
@@ -75,7 +76,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
               <span className="text-[#f46617]">in one place.</span>
             </h2>
             <p className="text-slate-500 font-medium mt-3 leading-relaxed max-w-md">
-              Check attendance, apply for leave, download payslips and keep learning — all from Autoform Connect.
+              Check attendance, {LEAVES_ENABLED ? 'apply for leave' : 'see holidays'}, download payslips and keep learning — all from Autoform Connect.
             </p>
             <div className="flex flex-wrap gap-2 mt-5">
               {HIGHLIGHTS.map(({ icon: Icon, label }) => (

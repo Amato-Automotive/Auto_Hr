@@ -7,6 +7,7 @@ import {
 import { dashboardApi, type DashboardSummary, type AttendanceSnapshot, type UserRole } from '../services/api';
 import { EmployeeAvatar } from './EmployeeAvatar';
 import { formatLeaveDuration } from '../utils/leaveRules';
+import { LEAVES_ENABLED } from '../utils/features';
 
 type NavTab = 'employees' | 'leaves' | 'attendance' | 'salary' | 'learning' | 'announcements' | 'documents' | 'my-profile' | 'holidays';
 
@@ -256,6 +257,21 @@ const OnLeaveCard: React.FC<{ data: DashboardSummary; title: string }> = ({ data
   </Card>
 );
 
+/** Stands in for the leave tiles while leave management is switched off (see utils/features). */
+const NextHolidayKpi: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }> = ({ data, go }) => {
+  const next = data.holidays[0];
+  return (
+    <Kpi
+      label="Next holiday"
+      value={next ? fmtDay(next.date) : '—'}
+      hint={next ? `${next.name} · ${relativeDay(next.date, data.today)}` : 'No holidays added yet'}
+      icon={Palmtree}
+      tone="from-orange-400 to-[#f46617]"
+      onClick={() => go('holidays')}
+    />
+  );
+};
+
 // ─── Role layouts ─────────────────────────────────────────────
 
 const EmployeeHome: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }> = ({ data, go }) => {
@@ -282,14 +298,18 @@ const EmployeeHome: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }
           tone="from-blue-400 to-indigo-500"
           onClick={() => go('attendance')}
         />
-        <Kpi
-          label="Leave taken this year"
-          value={me.leaves.takenThisYear}
-          hint={me.leaves.pending ? `${me.leaves.pending} request${me.leaves.pending === 1 ? '' : 's'} awaiting approval` : 'days approved'}
-          icon={Calendar}
-          tone="from-orange-400 to-[#f46617]"
-          onClick={() => go('leaves')}
-        />
+        {LEAVES_ENABLED ? (
+          <Kpi
+            label="Leave taken this year"
+            value={me.leaves.takenThisYear}
+            hint={me.leaves.pending ? `${me.leaves.pending} request${me.leaves.pending === 1 ? '' : 's'} awaiting approval` : 'days approved'}
+            icon={Calendar}
+            tone="from-orange-400 to-[#f46617]"
+            onClick={() => go('leaves')}
+          />
+        ) : (
+          <NextHolidayKpi data={data} go={go} />
+        )}
         <Kpi
           label="Active courses"
           value={me.learning.active}
@@ -330,9 +350,9 @@ const EmployeeHome: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }
             </div>
           </Card>
 
-          <Card title="Leave & payslips" icon={<Wallet className="w-4 h-4" />}>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <button onClick={() => go('leaves')} className="text-left rounded-2xl border border-slate-100 p-4 hover:border-orange-200 hover:bg-orange-50/30 transition-colors">
+          <Card title={LEAVES_ENABLED ? 'Leave & payslips' : 'Payslips'} icon={<Wallet className="w-4 h-4" />}>
+            <div className={`grid gap-3 ${LEAVES_ENABLED ? 'sm:grid-cols-2' : ''}`}>
+              {LEAVES_ENABLED && <button onClick={() => go('leaves')} className="text-left rounded-2xl border border-slate-100 p-4 hover:border-orange-200 hover:bg-orange-50/30 transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Upcoming leave</p>
                 {me.leaves.upcoming ? (
                   <>
@@ -344,7 +364,7 @@ const EmployeeHome: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }
                 ) : (
                   <p className="text-sm font-semibold text-slate-500 mt-1">None planned — apply when you need a break.</p>
                 )}
-              </button>
+              </button>}
               <button onClick={() => go('salary')} className="text-left rounded-2xl border border-slate-100 p-4 hover:border-orange-200 hover:bg-orange-50/30 transition-colors">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Latest payslip</p>
                 {me.latestSlipMonth ? (
@@ -360,7 +380,7 @@ const EmployeeHome: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }
           </Card>
         </div>
         <div className="space-y-4 sm:space-y-6">
-          {data.approvals.count > 0 && <ApprovalsCard data={data} go={go} />}
+          {LEAVES_ENABLED && data.approvals.count > 0 && <ApprovalsCard data={data} go={go} />}
           <HolidaysCard data={data} go={go} />
         </div>
       </div>
@@ -383,14 +403,16 @@ const ManagerHome: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }>
           tone="from-emerald-400 to-teal-500"
           onClick={() => go('attendance')}
         />
-        <Kpi
-          label="Pending approvals"
-          value={data.approvals.count}
-          hint={data.approvals.count ? 'leave requests waiting on you' : 'All caught up'}
-          icon={ClipboardCheck}
-          tone="from-orange-400 to-[#f46617]"
-          onClick={() => go('leaves')}
-        />
+        {LEAVES_ENABLED ? (
+          <Kpi
+            label="Pending approvals"
+            value={data.approvals.count}
+            hint={data.approvals.count ? 'leave requests waiting on you' : 'All caught up'}
+            icon={ClipboardCheck}
+            tone="from-orange-400 to-[#f46617]"
+            onClick={() => go('leaves')}
+          />
+        ) : <NextHolidayKpi data={data} go={go} />}
         <Kpi
           label="Team learning overdue"
           value={team?.learningOverdue ?? 0}
@@ -403,16 +425,16 @@ const ManagerHome: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* On phones this column holds only the approvals card (the rest is hidden there) */}
-        <div className={`lg:col-span-2 space-y-4 sm:space-y-6 ${data.approvals.items.length === 0 ? 'hidden sm:block' : ''}`}>
+        <div className={`lg:col-span-2 space-y-4 sm:space-y-6 ${!LEAVES_ENABLED || data.approvals.items.length === 0 ? 'hidden sm:block' : ''}`}>
           <Card className={PHONE_HIDDEN} title="Team attendance" icon={<Clock className="w-4 h-4" />} action={{ label: 'Open attendance', onClick: () => go('attendance') }}>
             {att ? <AttendanceBreakdown snapshot={att} today={data.today} /> : (
               <EmptyNote icon={<Clock className="w-8 h-8 mb-2 text-slate-300" />} text={team?.size ? 'No attendance uploaded for your team yet.' : 'No one reports to you yet.'} />
             )}
           </Card>
-          <ApprovalsCard data={data} go={go} />
+          {LEAVES_ENABLED && <ApprovalsCard data={data} go={go} />}
         </div>
         <div className="space-y-4 sm:space-y-6">
-          <OnLeaveCard data={data} title="Team on leave today" />
+          {LEAVES_ENABLED && <OnLeaveCard data={data} title="Team on leave today" />}
           <HolidaysCard data={data} go={go} />
         </div>
       </div>
@@ -463,14 +485,16 @@ const OrgHome: React.FC<{ data: DashboardSummary; role: UserRole; go: (t: NavTab
           tone="from-emerald-400 to-teal-500"
           onClick={() => go('attendance')}
         />
-        <Kpi
-          label="Pending approvals"
-          value={data.approvals.count}
-          hint={data.approvals.count ? 'leave requests to review' : 'All caught up'}
-          icon={ClipboardCheck}
-          tone="from-orange-400 to-[#f46617]"
-          onClick={() => go('leaves')}
-        />
+        {LEAVES_ENABLED ? (
+          <Kpi
+            label="Pending approvals"
+            value={data.approvals.count}
+            hint={data.approvals.count ? 'leave requests to review' : 'All caught up'}
+            icon={ClipboardCheck}
+            tone="from-orange-400 to-[#f46617]"
+            onClick={() => go('leaves')}
+          />
+        ) : <NextHolidayKpi data={data} go={go} />}
         <Kpi
           label="Learning completion"
           value={org.learning.completionRate === null ? '—' : `${org.learning.completionRate}%`}
@@ -483,7 +507,7 @@ const OrgHome: React.FC<{ data: DashboardSummary; role: UserRole; go: (t: NavTab
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* On phones this column holds only the approvals card (the rest is hidden there) */}
-        <div className={`lg:col-span-2 space-y-4 sm:space-y-6 ${data.approvals.items.length === 0 ? 'hidden sm:block' : ''}`}>
+        <div className={`lg:col-span-2 space-y-4 sm:space-y-6 ${!LEAVES_ENABLED || data.approvals.items.length === 0 ? 'hidden sm:block' : ''}`}>
           <Card className={PHONE_HIDDEN} title="Attendance" icon={<Clock className="w-4 h-4" />} subtitle="Company-wide" action={{ label: 'Open attendance', onClick: () => go('attendance') }}>
             {att ? <AttendanceBreakdown snapshot={att} today={data.today} /> : (
               <EmptyNote icon={<Clock className="w-8 h-8 mb-2 text-slate-300" />} text="No attendance has been uploaded yet." />
@@ -509,7 +533,7 @@ const OrgHome: React.FC<{ data: DashboardSummary; role: UserRole; go: (t: NavTab
                 ))}
               </ul>
             </Card>
-            <ApprovalsCard data={data} go={go} />
+            {LEAVES_ENABLED && <ApprovalsCard data={data} go={go} />}
           </div>
         </div>
 
@@ -531,7 +555,7 @@ const OrgHome: React.FC<{ data: DashboardSummary; role: UserRole; go: (t: NavTab
               </ul>
             </Card>
           )}
-          <OnLeaveCard data={data} title="On leave today" />
+          {LEAVES_ENABLED && <OnLeaveCard data={data} title="On leave today" />}
           {isHR && (
             <Card title="Payroll" icon={<Wallet className="w-4 h-4" />} action={{ label: 'Salary', onClick: () => go('salary') }}>
               {org.payroll ? (
@@ -579,6 +603,14 @@ const QUICK_ACTIONS: Record<UserRole, { label: string; icon: React.ElementType; 
   ],
 };
 
+/** Leave actions drop out while leave management is off; the first remaining one becomes the main button. */
+function quickActionsFor(role: UserRole) {
+  const actions = QUICK_ACTIONS[role].filter(action => LEAVES_ENABLED || action.tab !== 'leaves');
+  return actions.some(action => action.primary)
+    ? actions
+    : actions.map((action, index) => (index === 0 ? { ...action, primary: true } : action));
+}
+
 // ─── Main ─────────────────────────────────────────────────────
 
 export const HomeDashboard: React.FC<{
@@ -621,7 +653,7 @@ export const HomeDashboard: React.FC<{
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          {QUICK_ACTIONS[role].map(a => (
+          {quickActionsFor(role).map(a => (
             <button
               key={a.label}
               onClick={() => onNavigate(a.tab)}

@@ -7,8 +7,9 @@ import {
   LogOut,
   Home, FileText, Loader2,
   CheckCircle, XCircle, MessageSquare, X, Send, AlertTriangle,
-  UserPlus, Search, Filter, RefreshCw, RotateCcw, GraduationCap, Bell
+  UserPlus, Search, Filter, RefreshCw, RotateCcw, GraduationCap, Bell, Palmtree
 } from 'lucide-react';
+import { LEAVES_ENABLED, LEAVES_LAUNCH_LABEL } from '../utils/features';
 import {
   employeeApi,
   leaveApi,
@@ -83,7 +84,7 @@ const Dashboard: React.FC = () => {
   const { user, isLoggedIn, isLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   // Holidays live inside Leaves, and E-Library inside Learning (one menu item each).
-  const [leavesSubTab, setLeavesSubTab] = useState<LeavesSubTab>('leaves');
+  const [leavesSubTab, setLeavesSubTab] = useState<LeavesSubTab>(LEAVES_ENABLED ? 'leaves' : 'holidays');
   const [learningStartTab, setLearningStartTab] = useState<LearningSubTab>('catalog');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaves, setLeaves] = useState<Leave[]>([]);
@@ -241,7 +242,7 @@ const Dashboard: React.FC = () => {
     { id: 'overview', label: 'Home', icon: Home },
     { id: 'announcements', label: 'Announcements', icon: Megaphone },
     { id: 'attendance', label: 'Attendance', icon: Clock },
-    { id: 'leaves', label: 'Leaves & Holidays', icon: Calendar },
+    { id: 'leaves', label: LEAVES_ENABLED ? 'Leaves & Holidays' : 'Holidays', icon: LEAVES_ENABLED ? Calendar : Palmtree },
     { id: 'salary', label: 'Salary', icon: DollarSign },
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'learning', label: 'Learning', icon: GraduationCap },
@@ -252,7 +253,8 @@ const Dashboard: React.FC = () => {
   const openTab = (tab: string) => {
     setFocusAttendanceEmployeeId(null);
     if (tab === 'holidays' || tab === 'leaves') {
-      setLeavesSubTab(tab === 'holidays' ? 'holidays' : 'leaves');
+      // While leave management is off, the page opens on Holidays.
+      setLeavesSubTab(tab === 'holidays' || !LEAVES_ENABLED ? 'holidays' : 'leaves');
       setActiveTab('leaves');
     } else if (tab === 'elibrary' || tab === 'learning') {
       setLearningStartTab(tab === 'elibrary' ? 'elibrary' : 'catalog');
@@ -318,7 +320,7 @@ const Dashboard: React.FC = () => {
                   <item.icon className="w-4 h-4 flex-shrink-0" />
                 </div>
                 <span>{item.label}</span>
-                {item.id === 'leaves' && pendingLeaves > 0 && (
+                {item.id === 'leaves' && LEAVES_ENABLED && pendingLeaves > 0 && (
                   <span className="ml-auto bg-[#f46617] text-white text-[10px] font-black px-2 py-0.5 rounded-full">
                     {pendingLeaves}
                   </span>
@@ -437,11 +439,16 @@ const Dashboard: React.FC = () => {
               {activeTab === 'leaves' && (
                 <div className="space-y-4">
                   <SubTabs
-                    tabs={[{ id: 'leaves', label: 'Leaves' }, { id: 'holidays', label: 'Holidays' }]}
+                    tabs={[
+                      { id: 'leaves', label: LEAVES_ENABLED ? 'Leaves' : `Leaves · ${LEAVES_LAUNCH_LABEL}` },
+                      { id: 'holidays', label: 'Holidays' },
+                    ]}
                     active={leavesSubTab}
                     onChange={setLeavesSubTab}
                   />
-                  {leavesSubTab === 'leaves' ? (
+                  {leavesSubTab === 'leaves' && !LEAVES_ENABLED ? (
+                    <LeavesComingSoon onShowHolidays={() => setLeavesSubTab('holidays')} />
+                  ) : leavesSubTab === 'leaves' ? (
                     <LeavesPanel
                       leaves={leaves}
                       role={role}
@@ -487,11 +494,16 @@ const Dashboard: React.FC = () => {
         primary={[
           { id: 'overview', label: 'Home', icon: Home },
           { id: 'attendance', label: 'Attendance', icon: Clock },
-          { id: 'leaves', label: 'Leaves', icon: Calendar, badge: pendingLeaves },
+          // While leave management is off, Announcements takes the Leaves slot; Holidays moves to More.
+          LEAVES_ENABLED
+            ? { id: 'leaves', label: 'Leaves', icon: Calendar, badge: pendingLeaves }
+            : { id: 'announcements', label: 'Announcements', icon: Megaphone, badge: unreadAnnouncementCount },
           { id: 'salary', label: 'Salary', icon: DollarSign },
         ]}
         more={[
-          { id: 'announcements', label: 'Announcements', icon: Megaphone, badge: unreadAnnouncementCount },
+          LEAVES_ENABLED
+            ? { id: 'announcements', label: 'Announcements', icon: Megaphone, badge: unreadAnnouncementCount }
+            : { id: 'leaves', label: 'Holidays', icon: Palmtree },
           { id: 'documents', label: 'Documents', icon: FileText },
           { id: 'learning', label: 'Learning', icon: GraduationCap },
           ...(role !== 'EMPLOYEE' ? [{ id: 'employees', label: 'Employees', icon: Users }] : []),
@@ -762,6 +774,23 @@ const SalaryPage: React.FC<{ role: UserRole; user: AuthUser | null }> = ({ role,
 
 type LearningSubTab = 'catalog' | 'paths' | 'ilt' | 'badges' | 'elibrary' | 'my-learning' | 'team' | 'overview';
 type LeavesSubTab = 'leaves' | 'holidays';
+
+/** Shown on the Leaves tab while leave management is switched off (utils/features). */
+const LeavesComingSoon: React.FC<{ onShowHolidays: () => void }> = ({ onShowHolidays }) => (
+  <div className="bg-white rounded-[28px] border border-orange-100/60 shadow-card px-6 py-12 sm:py-16 text-center">
+    <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-orange-50 text-[#f46617] mb-4">
+      <Calendar className="w-7 h-7" />
+    </div>
+    <p className="text-[11px] font-bold uppercase tracking-wider text-[#f46617]">Coming in {LEAVES_LAUNCH_LABEL}</p>
+    <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight mt-1">Leave management is on its way</h2>
+    <p className="text-sm text-slate-500 font-medium mt-2 max-w-md mx-auto">
+      Applying for and approving leave here starts next year. Until then, request leave the usual way with your manager or HR.
+    </p>
+    <button type="button" onClick={onShowHolidays} className="btn-orange mt-6 px-5 py-2.5 text-xs font-bold rounded-2xl mx-auto">
+      <Palmtree className="w-4 h-4" /> See this year's holidays
+    </button>
+  </div>
+);
 
 /** Segmented control for in-page tabs (same look as the Salary/Learning tabs). */
 function SubTabs<T extends string>({ tabs, active, onChange }: {
