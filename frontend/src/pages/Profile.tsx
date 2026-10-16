@@ -80,7 +80,9 @@ export const ProfileView: React.FC<{
   onEmployeeRemoved?: () => void;
   /** Called after any change saved from this profile, so lists elsewhere on screen can refresh. */
   onChanged?: () => void;
-}> = ({ employeeId, initialTab = 'about', onBack, onOpenEmployee, hideBack = false, onEmployeeRemoved, onChanged }) => {
+  /** On the My Profile page, drop the tabs that duplicate sidebar pages (Salary, Leaves, Attendance). */
+  hideSidebarDuplicates?: boolean;
+}> = ({ employeeId, initialTab = 'about', onBack, onOpenEmployee, hideBack = false, onEmployeeRemoved, onChanged, hideSidebarDuplicates = false }) => {
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
@@ -181,10 +183,12 @@ export const ProfileView: React.FC<{
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'about', label: 'About' },
-    ...(isOwnProfile ? [{ id: 'salary' as Tab, label: 'Salary' }] : []),
+    ...(isOwnProfile && !hideSidebarDuplicates ? [{ id: 'salary' as Tab, label: 'Salary' }] : []),
     { id: 'performance', label: 'Performance' },
-    { id: 'leaves', label: 'Leaves' },
-    { id: 'attendance', label: 'Attendance' },
+    ...(isOwnProfile && hideSidebarDuplicates ? [] : [
+      { id: 'leaves' as Tab, label: 'Leaves' },
+      { id: 'attendance' as Tab, label: 'Attendance' },
+    ]),
     ...(canViewEmployeeDocuments ? [{ id: 'documents' as Tab, label: 'Documents' }] : []),
     ...(isOwnProfile ? [{ id: 'account' as Tab, label: 'Account Settings' }] : []),
   ];

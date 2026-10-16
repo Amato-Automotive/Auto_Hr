@@ -5,9 +5,9 @@ import LoginForm from '../components/LoginForm';
 import {
   Users, Calendar, Clock, DollarSign, Megaphone,
   LogOut,
-  Home, FileText, BarChart3, Loader2,
+  Home, FileText, Loader2,
   CheckCircle, XCircle, MessageSquare, X, Send, AlertTriangle,
-  UserPlus, Search, Filter, RefreshCw, RotateCcw, GraduationCap, Bell, BookOpen, UserCircle, Menu, Palmtree
+  UserPlus, Search, Filter, RefreshCw, RotateCcw, GraduationCap, Bell, Menu
 } from 'lucide-react';
 import {
   employeeApi,
@@ -81,6 +81,9 @@ const getRoleBadgeClasses = (role: UserRole) => (
 const Dashboard: React.FC = () => {
   const { user, isLoggedIn, isLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  // Holidays live inside Leaves, and E-Library inside Learning (one menu item each).
+  const [leavesSubTab, setLeavesSubTab] = useState<LeavesSubTab>('leaves');
+  const [learningStartTab, setLearningStartTab] = useState<LearningSubTab>('catalog');
   // Phones/tablets: the sidebar becomes a slide-in drawer opened from the top bar.
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   useEffect(() => setMobileNavOpen(false), [activeTab]);
@@ -221,7 +224,7 @@ const Dashboard: React.FC = () => {
         setActiveTab('documents');
         break;
       case 'LIBRARY_DOCUMENT_ADDED':
-        setActiveTab('elibrary');
+        openTab('elibrary');
         break;
       case 'PAYROLL_DETAILS_CHANGED':
         if (notification.employeeId) {
@@ -235,22 +238,34 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Define sidebar navigation based on role
+  // Sidebar navigation: one entry per page. My Profile is the user card above the menu.
   const navItems = [
     { id: 'overview', label: 'Home', icon: Home },
-    { id: 'employees', label: role === 'EMPLOYEE' ? 'My Profile' : 'Employees', icon: Users },
     { id: 'announcements', label: 'Announcements', icon: Megaphone },
     { id: 'attendance', label: 'Attendance', icon: Clock },
-    { id: 'leaves', label: 'Leaves', icon: Calendar },
-    { id: 'holidays', label: 'Holidays', icon: Palmtree },
+    { id: 'leaves', label: 'Leaves & Holidays', icon: Calendar },
     { id: 'salary', label: 'Salary', icon: DollarSign },
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'learning', label: 'Learning', icon: GraduationCap },
-    { id: 'elibrary', label: 'E-Library', icon: BookOpen },
-    ...(ALL_ACCESS_ROLES.includes(role) ? [
-      { id: 'reports', label: 'Reports', icon: BarChart3 },
-    ] : []),
+    ...(role !== 'EMPLOYEE' ? [{ id: 'employees', label: 'Employees', icon: Users }] : []),
   ];
+
+  /** Opens a page; also accepts the old standalone ids ('holidays', 'elibrary') still used by links. */
+  const openTab = (tab: string) => {
+    setFocusAttendanceEmployeeId(null);
+    setMobileNavOpen(false);
+    if (tab === 'holidays' || tab === 'leaves') {
+      setLeavesSubTab(tab === 'holidays' ? 'holidays' : 'leaves');
+      setActiveTab('leaves');
+    } else if (tab === 'elibrary' || tab === 'learning') {
+      setLearningStartTab(tab === 'elibrary' ? 'elibrary' : 'catalog');
+      setActiveTab('learning');
+    } else if (tab === 'employees' && role === 'EMPLOYEE') {
+      setActiveTab('my-profile');
+    } else {
+      setActiveTab(tab);
+    }
+  };
 
   const pendingLeaves = leaves.filter(l => l.status === 'PENDING').length;
   const allDepartments = Array.from(new Set(employees.map(e => e.department).filter(Boolean))) as string[];
@@ -281,7 +296,7 @@ const Dashboard: React.FC = () => {
             onViewAll={() => setActiveTab('notifications')}
             onOpenNotification={handleOpenNotification}
           />
-          <button type="button" onClick={() => setActiveTab(role === 'EMPLOYEE' ? 'employees' : 'my-profile')} aria-label="My profile">
+          <button type="button" onClick={() => openTab('my-profile')} aria-label="My profile">
             <EmployeeAvatar name={name} avatar={user?.employee?.avatar} gender={user?.employee?.gender} size="w-9 h-9" shape="rounded" />
           </button>
         </div>
@@ -308,30 +323,9 @@ const Dashboard: React.FC = () => {
           <X className="w-5 h-5" />
         </button>
         {/* Logo */}
-        <div className="px-6 py-4 lg:p-6 border-b border-orange-100/70 flex flex-col items-start lg:items-center text-left lg:text-center">
-          <img src={logoImg} alt="Autoform Logo" className="w-32 lg:w-44 h-auto mb-1 select-none" />
-          <h1 className="text-xl lg:text-2xl font-script text-slate-800 leading-none">Autoform Connect</h1>
-          <p className="hidden lg:block text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Autoform India</p>
-        </div>
-
-        {/* User Info */}
-        <div className="px-6 py-3 lg:py-4 border-b border-orange-100/40">
-          <div className="flex items-center gap-3">
-            <EmployeeAvatar
-              name={name}
-              avatar={user?.employee?.avatar}
-              gender={user?.employee?.gender}
-              size="w-10 h-10"
-              shape="rounded"
-              className="shadow-md shadow-orange-200/60"
-            />
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-slate-800 truncate">{name}</p>
-              <span className={`inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full mt-0.5 ${getRoleBadgeClasses(role)}`}>
-                {role}
-              </span>
-            </div>
-          </div>
+        <div className="px-6 pt-5 pb-4 border-b border-orange-100/70 flex flex-col items-start lg:items-center">
+          <img src={logoImg} alt="Autoform Logo" className="w-28 lg:w-36 h-auto mb-1 select-none" />
+          <h1 className="text-lg lg:text-xl font-script text-slate-800 leading-none">Autoform Connect</h1>
         </div>
 
         {/* Navigation */}
@@ -341,10 +335,7 @@ const Dashboard: React.FC = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setFocusAttendanceEmployeeId(null);
-                }}
+                onClick={() => openTab(item.id)}
                 className={isActive ? 'nav-item-active' : 'nav-item'}
               >
                 <div className={`p-1 rounded-lg transition-colors ${isActive ? 'text-[#f46617]' : 'text-slate-400'}`}>
@@ -366,28 +357,39 @@ const Dashboard: React.FC = () => {
           })}
         </nav>
 
-        {/* My Profile + Logout */}
-        <div className="p-3 lg:p-4 border-t border-orange-100/70 space-y-0.5 lg:space-y-1">
-          {role !== 'EMPLOYEE' && user?.employeeId && (
-            <button
-              onClick={() => {
-                setActiveTab('my-profile');
-                setFocusAttendanceEmployeeId(null);
-              }}
-              className={activeTab === 'my-profile' ? 'nav-item-active' : 'nav-item'}
-            >
-              <div className={`p-1 rounded-lg transition-colors ${activeTab === 'my-profile' ? 'text-[#f46617]' : 'text-slate-400'}`}>
-                <UserCircle className="w-4 h-4 flex-shrink-0" />
-              </div>
-              <span>My Profile</span>
-            </button>
-          )}
+        {/* Bottom: user card (opens My Profile) and a labelled Sign out button */}
+        <div className="px-3 pt-3 pb-3 border-t border-orange-100/70 space-y-2">
           <button
-            onClick={logout}
-            className="w-full flex items-center gap-3 px-6 py-3 text-sm font-semibold text-slate-500 hover:text-[#f46617] hover:bg-orange-50/50 rounded-2xl transition-all"
+            type="button"
+            onClick={() => user?.employeeId && openTab('my-profile')}
+            disabled={!user?.employeeId}
+            title={user?.employeeId ? 'My profile' : undefined}
+            className={`w-full min-w-0 flex items-center gap-3 p-2 rounded-2xl text-left border transition-all ${
+              activeTab === 'my-profile' ? 'bg-orange-50 border-orange-100/60' : 'border-transparent hover:bg-orange-50/50'
+            }`}
           >
-            <LogOut className="w-4 h-4 text-slate-400" />
-            <span>Sign Out</span>
+            <EmployeeAvatar
+              name={name}
+              avatar={user?.employee?.avatar}
+              gender={user?.employee?.gender}
+              size="w-10 h-10"
+              shape="rounded"
+              className="shadow-md shadow-orange-200/60"
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-slate-800 truncate">{name}</p>
+              <span className={`inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full mt-0.5 ${getRoleBadgeClasses(role)}`}>
+                {role}
+              </span>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={logout}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-slate-600 bg-white border border-orange-100 rounded-2xl hover:text-[#f46617] hover:border-[#f46617]/40 hover:bg-orange-50/50 transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign out</span>
           </button>
         </div>
       </aside>
@@ -420,10 +422,7 @@ const Dashboard: React.FC = () => {
                 <OverviewPanel
                   role={role}
                   name={name}
-                  onNavigate={tab => {
-                    setActiveTab(tab);
-                    setFocusAttendanceEmployeeId(null);
-                  }}
+                  onNavigate={openTab}
                   employeeCount={employees.length}
                   pendingLeaves={pendingLeaves}
                   announcementCount={announcements.length}
@@ -433,27 +432,20 @@ const Dashboard: React.FC = () => {
                   onRefreshAnnouncements={() => loadDashboardData()}
                 />
               )}
-              {activeTab === 'employees' && (
-                role === 'EMPLOYEE' && user?.employeeId ? (
-                  <ProfileView
-                    employeeId={user.employeeId}
-                    hideBack={true}
-                    onChanged={() => void loadDashboardData()}
-                  />
-                ) : (
-                  <EmployeesPage
-                    employees={employees}
-                    role={role}
-                    currentEmployeeId={user?.employeeId ?? null}
-                    onRefresh={() => loadDashboardData()}
-                    onOpenProfile={(employeeId: number) => setProfileDrawer({ open: true, employeeId, tab: 'about' })}
-                  />
-                )
+              {activeTab === 'employees' && role !== 'EMPLOYEE' && (
+                <EmployeesPage
+                  employees={employees}
+                  role={role}
+                  currentEmployeeId={user?.employeeId ?? null}
+                  onRefresh={() => loadDashboardData()}
+                  onOpenProfile={(employeeId: number) => setProfileDrawer({ open: true, employeeId, tab: 'about' })}
+                />
               )}
               {activeTab === 'my-profile' && user?.employeeId && (
                 <ProfileView
                   employeeId={user.employeeId}
                   hideBack={true}
+                  hideSidebarDuplicates
                   onChanged={() => void loadDashboardData()}
                 />
               )}
@@ -466,13 +458,24 @@ const Dashboard: React.FC = () => {
                 />
               )}
               {activeTab === 'leaves' && (
-                <LeavesPanel
-                  leaves={leaves}
-                  role={role}
-                  user={user}
-                  onRefresh={() => loadDashboardData()}
-                  onOpenApplyLeave={(employeeId: number) => setProfileDrawer({ open: true, employeeId, tab: 'leaves' })}
-                />
+                <div className="space-y-4">
+                  <SubTabs
+                    tabs={[{ id: 'leaves', label: 'Leaves' }, { id: 'holidays', label: 'Holidays' }]}
+                    active={leavesSubTab}
+                    onChange={setLeavesSubTab}
+                  />
+                  {leavesSubTab === 'leaves' ? (
+                    <LeavesPanel
+                      leaves={leaves}
+                      role={role}
+                      user={user}
+                      onRefresh={() => loadDashboardData()}
+                      onOpenApplyLeave={(employeeId: number) => setProfileDrawer({ open: true, employeeId, tab: 'leaves' })}
+                    />
+                  ) : (
+                    <HolidaysPanel role={role} />
+                  )}
+                </div>
               )}
               {activeTab === 'attendance' && (
                 <AttendancePanel
@@ -481,20 +484,15 @@ const Dashboard: React.FC = () => {
                   focusEmployeeId={focusAttendanceEmployeeId}
                 />
               )}
-              {activeTab === 'holidays' && (
-                <HolidaysPanel role={role} />
-              )}
               {activeTab === 'salary' && (
                 <SalaryPage role={role} user={user} />
               )}
               {activeTab === 'documents' && (
                 <DocumentManagerPanel role={role} currentEmployeeId={user?.employeeId ?? null} />
               )}
-              {activeTab === 'elibrary' && (
-                <ELibraryTab role={role} />
-              )}
               {activeTab === 'learning' && (
-                <LearningPage role={role} user={user} departments={allDepartments} />
+                // Keyed so following an E-Library link reopens the page on that tab.
+                <LearningPage key={learningStartTab} role={role} user={user} departments={allDepartments} initialSubTab={learningStartTab} />
               )}
               {activeTab === 'notifications' && (
                 <NotificationsPanel
@@ -502,9 +500,6 @@ const Dashboard: React.FC = () => {
                   onRefresh={refreshNotifications}
                   onOpenNotification={handleOpenNotification}
                 />
-              )}
-              {activeTab === 'reports' && (
-                <ComingSoonPanel title="Reports" />
               )}
             </Suspense>
           )}
@@ -762,12 +757,37 @@ const SalaryPage: React.FC<{ role: UserRole; user: AuthUser | null }> = ({ role,
 
 // ─── Learning Page (tabbed: Catalog / My Learning / Team / Overview) ─
 
-type LearningSubTab = 'catalog' | 'paths' | 'ilt' | 'badges' | 'my-learning' | 'team' | 'overview';
+type LearningSubTab = 'catalog' | 'paths' | 'ilt' | 'badges' | 'elibrary' | 'my-learning' | 'team' | 'overview';
+type LeavesSubTab = 'leaves' | 'holidays';
 
-const LearningPage: React.FC<{ role: UserRole; user: AuthUser | null; departments: string[] }> = ({ role, user, departments }) => {
+/** Segmented control for in-page tabs (same look as the Salary/Learning tabs). */
+function SubTabs<T extends string>({ tabs, active, onChange }: {
+  tabs: { id: T; label: string }[];
+  active: T;
+  onChange: (id: T) => void;
+}) {
+  return (
+    <div className="flex w-fit max-w-full overflow-x-auto no-scrollbar bg-orange-50/60 p-1.5 rounded-2xl border border-orange-100/50">
+      {tabs.map(tab => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => onChange(tab.id)}
+          className={`px-4 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
+            active === tab.id ? 'bg-white text-[#f46617] shadow-sm' : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const LearningPage: React.FC<{ role: UserRole; user: AuthUser | null; departments: string[]; initialSubTab?: LearningSubTab }> = ({ role, user, departments, initialSubTab = 'catalog' }) => {
   const isManagement = MANAGEMENT_ROLES.includes(role);
   const isAdmin = ALL_ACCESS_ROLES.includes(role);
-  const [subTab, setSubTab] = useState<LearningSubTab>('catalog');
+  const [subTab, setSubTab] = useState<LearningSubTab>(initialSubTab);
   const [filters, setFilters] = useState<PageFilterState>(EMPTY_PAGE_FILTERS);
 
   const tabs: { id: LearningSubTab; label: string }[] = [
@@ -775,6 +795,7 @@ const LearningPage: React.FC<{ role: UserRole; user: AuthUser | null; department
     { id: 'paths', label: 'Paths' },
     { id: 'ilt', label: 'Live Training' },
     { id: 'badges', label: 'Badges' },
+    { id: 'elibrary', label: 'E-Library' },
     ...(user?.employeeId ? [{ id: 'my-learning' as const, label: 'My Learning' }] : []),
     ...(isManagement ? [{ id: 'team' as const, label: 'Team' }] : []),
     ...(isAdmin ? [{ id: 'overview' as const, label: 'Overview' }] : []),
@@ -803,16 +824,20 @@ const LearningPage: React.FC<{ role: UserRole; user: AuthUser | null; department
         )}
       </div>
 
-      <PageFilterBar
-        filters={filters}
-        onChange={setFilters}
-        searchPlaceholder="Search courses, paths, sessions, employees, badges, departments..."
-      />
+      {/* E-Library has its own search */}
+      {subTab !== 'elibrary' && (
+        <PageFilterBar
+          filters={filters}
+          onChange={setFilters}
+          searchPlaceholder="Search courses, paths, sessions, employees, badges, departments..."
+        />
+      )}
 
       {subTab === 'catalog' && <LearningCatalogPanel role={role} departments={departments} filters={filters} />}
       {subTab === 'paths' && <LearningPathsPanel role={role} departments={departments} filters={filters} />}
       {subTab === 'ilt' && <ILTSessionsPanel role={role} departments={departments} filters={filters} />}
       {subTab === 'badges' && <BadgeCatalogPanel role={role} filters={filters} />}
+      {subTab === 'elibrary' && <ELibraryTab role={role} />}
       {subTab === 'my-learning' && user?.employeeId && <MyLearningPanel filters={filters} />}
       {subTab === 'team' && isManagement && <TeamLearningPanel filters={filters} />}
       {subTab === 'overview' && isAdmin && <AdminLearningDashboard filters={filters} />}
@@ -2367,18 +2392,5 @@ const LeavesPanel: React.FC<{
     </div>
   );
 };
-
-// ─── Coming Soon Panel ───────────────────────────────────────
-
-const ComingSoonPanel: React.FC<{ title: string }> = ({ title }) => (
-  <div className="text-center py-20">
-    <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-orange-50 text-[#f46617] mb-4 shadow-sm">
-      <FileText className="w-8 h-8" />
-    </div>
-    <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-2">{title}</h2>
-    <p className="text-slate-500 font-medium text-sm">This section is coming soon</p>
-    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1.5">We're building something great here</p>
-  </div>
-);
 
 export default Dashboard;
