@@ -9,7 +9,7 @@ import {
 } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { BadRequestError, NotFoundError } from '../utils/errors.js';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 
 const router = Router();
 
@@ -87,14 +87,29 @@ router.get(
     })
 );
 
+/**
+ * HR edits anyone's KRAs/KPIs; a manager edits those of people in their reporting line,
+ * but not their own (their manager or HR sets those).
+ */
+async function assertCanEditPerformance(req: import('express').Request, employeeId: number): Promise<void> {
+    if (req.user!.role === 'HR') return;
+    if (req.user!.employeeId === employeeId) {
+        throw new ForbiddenError('You cannot edit your own KRAs or KPIs');
+    }
+    await assertCanAccessEmployee(req, employeeId, {
+        team: 'You can only edit KRAs and KPIs for your own team members',
+    });
+}
+
 // ─── POST /api/performance/kra ───────────────────────────────
 
 router.post(
     '/kra',
-    authorize('HR'),
+    authorize('HR', 'MANAGER'),
     validate(kraSchema),
     asyncHandler(async (req, res) => {
         const data = req.body as z.infer<typeof kraSchema>;
+        await assertCanEditPerformance(req, data.employeeId);
 
         const kra = await prisma.kra.create({ data });
 
@@ -110,7 +125,7 @@ router.post(
 
 router.put(
     '/kra/:id',
-    authorize('HR'),
+    authorize('HR', 'MANAGER'),
     validate(updateKraSchema),
     asyncHandler(async (req, res) => {
         const id = parseInt(req.params['id'] as string, 10);
@@ -118,6 +133,7 @@ router.put(
 
         const existing = await prisma.kra.findUnique({ where: { id } });
         if (!existing) throw new NotFoundError('KRA not found');
+        await assertCanEditPerformance(req, existing.employeeId);
 
         const kra = await prisma.kra.update({
             where: { id },
@@ -132,13 +148,14 @@ router.put(
 
 router.delete(
     '/kra/:id',
-    authorize('HR'),
+    authorize('HR', 'MANAGER'),
     asyncHandler(async (req, res) => {
         const id = parseInt(req.params['id'] as string, 10);
         if (isNaN(id)) throw new BadRequestError('Invalid KRA ID');
 
         const existing = await prisma.kra.findUnique({ where: { id } });
         if (!existing) throw new NotFoundError('KRA not found');
+        await assertCanEditPerformance(req, existing.employeeId);
 
         await prisma.kra.delete({ where: { id } });
 
@@ -150,7 +167,7 @@ router.delete(
 
 router.post(
     '/kpi',
-    authorize('HR'),
+    authorize('HR', 'MANAGER'),
     validate(kpiSchema),
     asyncHandler(async (req, res) => {
         const data = req.body as z.infer<typeof kpiSchema>;
@@ -158,6 +175,7 @@ router.post(
         // Verify KRA exists
         const kra = await prisma.kra.findUnique({ where: { id: data.kraId } });
         if (!kra) throw new NotFoundError('KRA not found');
+        await assertCanEditPerformance(req, kra.employeeId);
 
         const score = calcScore(data.actual ?? null, data.target);
 
@@ -180,14 +198,15 @@ router.post(
 
 router.put(
     '/kpi/:id',
-    authorize('HR'),
+    authorize('HR', 'MANAGER'),
     validate(updateKpiSchema),
     asyncHandler(async (req, res) => {
         const id = parseInt(req.params['id'] as string, 10);
         if (isNaN(id)) throw new BadRequestError('Invalid KPI ID');
 
-        const existing = await prisma.kpi.findUnique({ where: { id } });
+        const existing = await prisma.kpi.findUnique({ where: { id }, include: { kra: { select: { employeeId: true } } } });
         if (!existing) throw new NotFoundError('KPI not found');
+        await assertCanEditPerformance(req, existing.kra.employeeId);
 
         const data = req.body as z.infer<typeof updateKpiSchema>;
 
@@ -211,13 +230,14 @@ router.put(
 
 router.delete(
     '/kpi/:id',
-    authorize('HR'),
+    authorize('HR', 'MANAGER'),
     asyncHandler(async (req, res) => {
         const id = parseInt(req.params['id'] as string, 10);
         if (isNaN(id)) throw new BadRequestError('Invalid KPI ID');
 
-        const existing = await prisma.kpi.findUnique({ where: { id } });
+        const existing = await prisma.kpi.findUnique({ where: { id }, include: { kra: { select: { employeeId: true } } } });
         if (!existing) throw new NotFoundError('KPI not found');
+        await assertCanEditPerformance(req, existing.kra.employeeId);
 
         await prisma.kpi.delete({ where: { id } });
 

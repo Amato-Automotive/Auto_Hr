@@ -93,7 +93,8 @@ export const ProfileView: React.FC<{
   const [error, setError] = useState<string | null>(null);
 
   const isHR = user?.role === 'HR';
-  const canEditPerformance = user?.role === 'HR' || user?.role === 'MANAGER';
+  // Managers edit their team's KRAs, not their own (the API enforces the same rule).
+  const canEditPerformance = user?.role === 'HR' || (user?.role === 'MANAGER' && user.employeeId !== employeeId);
 
   useEffect(() => {
     if (!employeeId) return;
