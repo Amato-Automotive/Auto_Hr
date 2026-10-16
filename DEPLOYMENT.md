@@ -122,9 +122,10 @@ once, in date order, before restarting `hr-api` with code that needs it.
 ## 5. Making FRONTEND changes live
 
 ```bash
-# On your machine (Git Bash), in frontend/
-VITE_API_URL=https://connect-api.amatoautomotive.co.in/api npm run build
+# On your machine (any shell), in frontend/ — the API URL comes from frontend/.env.production
+npm run build
 grep -l "connect-api.amatoautomotive.co.in/api" dist/assets/*.js   # must find the bundle
+grep -l "localhost:3001" dist/assets/*.js                          # must find nothing
 ```
 
 Upload via hPanel File Manager (or FTP) into `/public_html/connect`:
