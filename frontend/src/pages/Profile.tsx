@@ -1196,11 +1196,14 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
             </div>
           </div>
 
-          <PayrollDetailsCard
-            employee={employee}
-            canEdit={isHR || isOwnProfile}
-            onSaved={onRefresh}
-          />
+          {/* PAN/bank details are only sent to HR and the employee themselves. */}
+          {(isHR || isOwnProfile) && (
+            <PayrollDetailsCard
+              employee={employee}
+              canEdit={isHR || isOwnProfile}
+              onSaved={onRefresh}
+            />
+          )}
 
           {isHR && !isOwnProfile && isAccountsDepartment(employee.department) && (
             <PayrollAccessCard employee={employee} onSaved={onRefresh} />

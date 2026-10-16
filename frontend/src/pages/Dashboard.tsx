@@ -220,6 +220,13 @@ const Dashboard: React.FC = () => {
       case 'LIBRARY_DOCUMENT_ADDED':
         setActiveTab('elibrary');
         break;
+      case 'PAYROLL_DETAILS_CHANGED':
+        if (notification.employeeId) {
+          setProfileDrawer({ open: true, employeeId: notification.employeeId, tab: 'about' });
+        } else {
+          setActiveTab('notifications');
+        }
+        break;
       default:
         setActiveTab('notifications');
     }

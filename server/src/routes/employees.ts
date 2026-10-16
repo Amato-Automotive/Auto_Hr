@@ -19,6 +19,30 @@ import { hashPassword } from '../utils/password.js';
 import { storeAvatarFile } from '../utils/avatarStorage.js';
 import { removePrivateUploadFile } from '../utils/uploadStorage.js';
 import { isAccountsDepartment } from '../utils/payrollAccess.js';
+import { notify, getHrUserIds } from '../utils/notificationService.js';
+
+/** Statutory and bank fields — only HR and the employee themselves may see them. */
+const PAYROLL_FIELDS = [
+    'employeeNumber', 'panNumber', 'uanNumber', 'pfAccountNumber', 'esiNumber',
+    'pranNumber', 'taxRegime', 'bankAccountNumber', 'bankIfscCode', 'bankBranch',
+] as const;
+
+const PAYROLL_FIELD_LABELS: Record<(typeof PAYROLL_FIELDS)[number], string> = {
+    employeeNumber: 'Employee number',
+    panNumber: 'PAN',
+    uanNumber: 'UAN',
+    pfAccountNumber: 'PF account',
+    esiNumber: 'ESI number',
+    pranNumber: 'PRAN',
+    taxRegime: 'Tax regime',
+    bankAccountNumber: 'Bank account',
+    bankIfscCode: 'IFSC code',
+    bankBranch: 'Bank branch',
+};
+
+/** "XXXX1234" — enough for HR to recognise the change without spreading the full number. */
+const maskValue = (value: string | null | undefined) =>
+    !value ? '(blank)' : value.length <= 4 ? value : `${'X'.repeat(Math.min(value.length - 4, 6))}${value.slice(-4)}`;
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1 * 1024 * 1024 } });
@@ -470,6 +494,13 @@ router.get(
             throw new NotFoundError('Employee not found');
         }
 
+        // Managers/leadership viewing a team member don't get PAN, bank and other payroll identifiers.
+        if (req.user!.role !== 'HR' && req.user!.employeeId !== id) {
+            for (const field of PAYROLL_FIELDS) {
+                (employee as Record<string, unknown>)[field] = null;
+            }
+        }
+
         res.json({
             success: true,
             data: { employee },
@@ -516,38 +547,46 @@ router.post(
             }
         }
 
-        // Create employee
-        const employee = await prisma.employee.create({
-            data: {
-                ...employeeData,
-                skills: employeeData.skills ? JSON.stringify(employeeData.skills) : undefined,
-                joinDate: joinDate ? new Date(joinDate) : undefined,
-                dateOfBirth: dateOfBirth ? toDateOfBirth(dateOfBirth) : undefined,
-            },
-        });
-
-        // Add multiple managers if provided
-        if (managerIds && managerIds.length > 0) {
-            await prisma.employeeManager.createMany({
-                data: managerIds.map(managerId => ({
-                    employeeId: employee.id,
-                    managerId,
-                })),
-            });
+        const wantsUser = Boolean(createUser && username && password);
+        if (wantsUser && (await prisma.user.findUnique({ where: { username: username! }, select: { id: true } }))) {
+            throw new ConflictError('Username is already taken');
         }
+        const passwordHash = wantsUser ? await hashPassword(password!) : null;
 
-        // Optionally create a user account linked to this employee
-        if (createUser && username && password) {
-            const passwordHash = await hashPassword(password);
-            await prisma.user.create({
+        // Employee, reporting links and login are created together, so a failure never leaves a
+        // half-created employee behind.
+        const employee = await prisma.$transaction(async (tx) => {
+            const created = await tx.employee.create({
                 data: {
-                    username,
-                    passwordHash,
-                    role: role || 'EMPLOYEE',
-                    employeeId: employee.id,
+                    ...employeeData,
+                    skills: employeeData.skills ? JSON.stringify(employeeData.skills) : undefined,
+                    joinDate: joinDate ? new Date(joinDate) : undefined,
+                    dateOfBirth: dateOfBirth ? toDateOfBirth(dateOfBirth) : undefined,
                 },
             });
-        }
+
+            if (managerIds && managerIds.length > 0) {
+                await tx.employeeManager.createMany({
+                    data: managerIds.map(managerId => ({
+                        employeeId: created.id,
+                        managerId,
+                    })),
+                });
+            }
+
+            if (passwordHash) {
+                await tx.user.create({
+                    data: {
+                        username: username!,
+                        passwordHash,
+                        role: role || 'EMPLOYEE',
+                        employeeId: created.id,
+                    },
+                });
+            }
+
+            return created;
+        });
 
         res.status(201).json({
             success: true,
@@ -758,6 +797,9 @@ router.put(
         if (!existing) throw new NotFoundError('Employee not found');
 
         const data = req.body as z.infer<typeof payrollDetailsSchema>;
+        const changed = PAYROLL_FIELDS.filter(
+            (field) => field in data && (data[field] ?? null) !== (existing[field] ?? null)
+        );
 
         const employee = await prisma.employee.update({
             where: { id },
@@ -776,6 +818,22 @@ router.put(
                 bankBranch: true,
             },
         });
+
+        // An employee changing their own bank/PAN details is a salary-redirection risk, so HR is
+        // told exactly what changed (masked old → new) and can verify before the next payroll run.
+        if (!isHR && changed.length > 0) {
+            await notify({
+                recipientIds: await getHrUserIds(),
+                excludeUserId: req.user!.userId,
+                type: 'PAYROLL_DETAILS_CHANGED',
+                title: `${existing.name} changed their payroll details`,
+                message: changed
+                    .map((field) => `${PAYROLL_FIELD_LABELS[field]}: ${maskValue(existing[field])} → ${maskValue(data[field])}`)
+                    .join('; '),
+                entityId: id,
+                employeeId: id,
+            });
+        }
 
         res.json({
             success: true,
