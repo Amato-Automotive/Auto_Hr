@@ -146,7 +146,7 @@ export const HeroBannerComposer: React.FC<HeroBannerComposerProps> = ({ onClose,
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. Welcome to Autoform HR"
+              placeholder="e.g. Welcome to Autoform Connect"
               className="w-full px-4 py-3 bg-white border border-orange-100 rounded-2xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange transition-all"
             />
           </div>
