@@ -624,7 +624,7 @@ const PageFilterBar: React.FC<{
   };
 
   return (
-    <div className="space-y-3 mb-6">
+    <div className="space-y-3 mb-4 sm:mb-6">
       <div className="relative">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
@@ -636,13 +636,14 @@ const PageFilterBar: React.FC<{
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      {/* One swipeable row on phones; wraps on wider screens */}
+      <div className="flex flex-nowrap sm:flex-wrap items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
         {(['ALL', 'DATE', 'MONTH', 'YEAR'] as const).map(mode => (
           <button
             key={mode}
             type="button"
             onClick={() => setMode(mode)}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${
               filters.dateMode === mode
                 ? 'bg-[#f46617] text-white shadow-sm shadow-orange-500/30'
                 : 'bg-orange-50/60 text-slate-500 hover:bg-orange-50'
@@ -733,11 +734,14 @@ const SalaryPage: React.FC<{ role: UserRole; user: AuthUser | null }> = ({ role,
         )}
       </div>
 
-      <PageFilterBar
-        filters={filters}
-        onChange={setFilters}
-        searchPlaceholder="Search salary slips, payroll files, amounts, dates..."
-      />
+      {/* Nothing to search or filter on the import form */}
+      {subTab !== 'import' && (
+        <PageFilterBar
+          filters={filters}
+          onChange={setFilters}
+          searchPlaceholder="Search salary slips, payroll files, amounts, dates..."
+        />
+      )}
 
       {subTab === 'import' && isHR && <PayrollImportPanel />}
       {subTab === 'history' && isHR && <PayrollImportHistory filters={filters} />}
@@ -1662,7 +1666,10 @@ const AnnouncementsPanel: React.FC<{
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-black text-slate-800 tracking-tight">Company Announcements</h2>
+        <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+          <span className="sm:hidden">Announcements</span>
+          <span className="hidden sm:inline">Company Announcements</span>
+        </h2>
         <div className="flex items-center gap-3">
           {unreadCount > 0 && (
             <button
@@ -1679,7 +1686,7 @@ const AnnouncementsPanel: React.FC<{
               onClick={() => setShowComposer(true)}
               className="btn-orange px-4 py-2.5 text-xs font-bold rounded-2xl"
             >
-              <Megaphone className="w-4 h-4" /> New Announcement
+              <Megaphone className="w-4 h-4" /> New<span className="hidden sm:inline"> Announcement</span>
             </button>
           )}
         </div>
@@ -1691,25 +1698,25 @@ const AnnouncementsPanel: React.FC<{
         searchPlaceholder="Search announcements, content, priority, department, creator..."
       />
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Filters — one swipeable row on phones */}
+      <div className="flex flex-nowrap sm:flex-wrap items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
         {READ_FILTERS.map(f => (
           <button
             key={f}
             onClick={() => setReadFilter(f)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${
               readFilter === f ? 'bg-[#f46617] text-white shadow-sm shadow-orange-500/30' : 'bg-orange-50/60 text-slate-500 hover:bg-orange-50'
             }`}
           >
             {f === 'ALL' ? 'All' : f === 'UNREAD' ? 'Unread' : 'Read'}
           </button>
         ))}
-        <span className="w-px h-5 bg-orange-100 mx-1" />
+        <span className="w-px h-5 bg-orange-100 mx-1 flex-shrink-0" />
         {(['ALL', 'LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const).map(p => (
           <button
             key={p}
             onClick={() => setPriorityFilter(p)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${
               priorityFilter === p ? 'bg-slate-700 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
             }`}
           >
@@ -1843,6 +1850,10 @@ const LeavesPanel: React.FC<{
   const [leaveTypeFilter, setLeaveTypeFilter] = useState('ALL');
   const [dateFromFilter, setDateFromFilter] = useState('');
   const [dateToFilter, setDateToFilter] = useState('');
+  // Phones show only the search box until "Filters" is tapped.
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilterCount = [departmentFilter !== 'ALL', managerFilter !== 'ALL', leaveTypeFilter !== 'ALL', dateFromFilter, dateToFilter]
+    .filter(Boolean).length;
 
   const isManagement = MANAGEMENT_ROLES.includes(role);
   const canApplyLeave = Boolean(user?.employeeId);
@@ -2090,20 +2101,31 @@ const LeavesPanel: React.FC<{
       </div>
 
       <div className="space-y-3 mb-5">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Search leave records, names, comments, dates..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-orange-100 rounded-2xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange shadow-sm transition-all"
-          />
+        {/* Search (+ Filters toggle on phones) */}
+        <div className="flex gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Search leaves..."
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-orange-100 rounded-2xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange shadow-sm transition-all"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFilters(open => !open)}
+            className={`sm:hidden flex items-center gap-1.5 px-3.5 rounded-2xl border text-xs font-bold transition-colors ${
+              showFilters || activeFilterCount ? 'bg-orange-50 border-orange-200 text-[#f46617]' : 'bg-white border-orange-100 text-slate-600'
+            }`}
+          >
+            <Filter className="w-4 h-4" /> Filters{activeFilterCount ? ` (${activeFilterCount})` : ''}
+          </button>
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_minmax(160px,1fr)_minmax(270px,1.2fr)_auto] gap-3 items-center">
+        <div className={`${showFilters ? 'grid' : 'hidden'} sm:grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_minmax(160px,1fr)_minmax(270px,1.2fr)_auto] gap-3 items-center`}>
           <DropdownSelect
             value={departmentFilter}
             onChange={setDepartmentFilter}
@@ -2208,7 +2230,7 @@ const LeavesPanel: React.FC<{
           Showing <span className="font-black text-slate-800">{filteredLeaves.length}</span>{' '}
           {filteredLeaves.length === 1 ? 'leave' : 'leaves'}
         </p>
-        <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+        <p className="hidden sm:block text-[10px] uppercase tracking-wider text-slate-400 font-bold">
           Search matches names, departments, managers, types, dates, comments and status
         </p>
       </div>

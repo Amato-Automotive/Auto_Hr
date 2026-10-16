@@ -394,7 +394,7 @@ const LeavesTab: React.FC<LeavesTabProps> = ({ leaves, employee, isHR: _isHR, on
   return (
     <div className={`space-y-6 relative ${isLight ? 'hr-panel-light' : ''}`}>
       {/* ── Summary Cards ─────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
         {[
           { label: 'Total Requests', value: stats.total, color: 'text-white', accent: 'from-slate-600 to-slate-700' },
           { label: 'Approved Days', value: stats.approvedDays, color: 'text-emerald-400', accent: 'from-emerald-600/20 to-emerald-700/10' },
@@ -405,12 +405,12 @@ const LeavesTab: React.FC<LeavesTabProps> = ({ leaves, employee, isHR: _isHR, on
           <div
             key={s.label}
             className={isLight
-              ? 'hr-surface-solid rounded-xl p-4 text-center transition-transform hover:scale-[1.02]'
+              ? 'hr-surface-solid rounded-xl p-2.5 sm:p-4 text-center transition-transform hover:scale-[1.02]'
               : 'bg-gradient-to-br bg-slate-800 rounded-xl p-4 border border-slate-700/50 text-center transition-transform hover:scale-[1.02]'
             }
           >
-            <p className={`text-2xl font-bold tabular-nums ${isLight ? 'text-stone-900' : s.color}`}>{s.value}</p>
-            <p className={`text-[11px] mt-1 font-medium uppercase tracking-wider ${isLight ? 'text-stone-600' : 'text-slate-400'}`}>
+            <p className={`text-xl sm:text-2xl font-bold tabular-nums ${isLight ? 'text-stone-900' : s.color}`}>{s.value}</p>
+            <p className={`text-[10px] sm:text-[11px] mt-1 font-medium uppercase tracking-wider leading-tight ${isLight ? 'text-stone-600' : 'text-slate-400'}`}>
               {s.label}
             </p>
           </div>
@@ -424,10 +424,10 @@ const LeavesTab: React.FC<LeavesTabProps> = ({ leaves, employee, isHR: _isHR, on
       }>
         {/* Header bar */}
         <div className={isLight
-          ? 'flex items-center justify-between px-5 py-4 border-b border-[rgba(var(--hr-border),0.85)] bg-white/40'
-          : 'flex items-center justify-between px-5 py-4 border-b border-slate-700/40 bg-slate-800/80'
+          ? 'flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3 sm:px-5 py-3 sm:py-4 border-b border-[rgba(var(--hr-border),0.85)] bg-white/40'
+          : 'flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-700/40 bg-slate-800/80'
         }>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-start gap-2">
             <button
               onClick={prevMonth}
               className={isLight
@@ -437,7 +437,7 @@ const LeavesTab: React.FC<LeavesTabProps> = ({ leaves, employee, isHR: _isHR, on
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <h3 className={`text-lg font-semibold min-w-[180px] text-center select-none ${isLight ? 'text-stone-900' : 'text-white'}`}>
+            <h3 className={`text-base sm:text-lg font-semibold sm:min-w-[180px] text-center select-none ${isLight ? 'text-stone-900' : 'text-white'}`}>
               {MONTHS[viewMonth]} {viewYear}
             </h3>
             <button
@@ -466,7 +466,7 @@ const LeavesTab: React.FC<LeavesTabProps> = ({ leaves, employee, isHR: _isHR, on
           {isOwnProfile && (
             <button
               onClick={applyMode ? exitApply : () => { setApplyMode(true); setSelStart(null); setSelEnd(null); }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-medium transition-all w-full sm:w-auto ${
                 applyMode
                   ? (isLight ? 'bg-orange-500/10 text-orange-700 border border-orange-500/20 hover:bg-orange-500/15' : 'bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25')
                   : (isLight ? 'btn-orange' : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/20 hover:shadow-blue-600/35 hover:brightness-110')

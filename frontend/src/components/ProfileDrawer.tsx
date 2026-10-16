@@ -39,11 +39,8 @@ export const ProfileDrawer: React.FC<{
       />
       <div className="absolute inset-y-0 right-0 w-full max-w-[1000px] bg-white border-l border-orange-100 shadow-2xl animate-slide-in">
         <div className="h-full flex flex-col">
-          <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-orange-100 bg-orange-50/20 backdrop-blur">
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold tracking-wider text-[#f46617] uppercase">{title}</p>
-              <p className="text-sm text-slate-500 font-semibold mt-0.5">Employee #{currentEmployeeId}</p>
-            </div>
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-5 border-b border-orange-100 bg-orange-50/20 backdrop-blur">
+            <p className="text-xs font-bold tracking-wider text-[#f46617] uppercase">{title}</p>
             <button
               onClick={onClose}
               className="p-2 rounded-xl hover:bg-orange-55 text-slate-550 hover:text-slate-700 transition-colors"
@@ -60,6 +57,7 @@ export const ProfileDrawer: React.FC<{
                 initialTab={tab}
                 theme="light"
                 onBack={onClose}
+                hideBack
                 onOpenEmployee={(id) => setCurrentEmployeeId(id)}
                 onEmployeeRemoved={onEmployeeRemoved}
                 onChanged={onChanged}

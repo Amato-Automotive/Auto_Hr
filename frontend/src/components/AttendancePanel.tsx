@@ -3,6 +3,7 @@ import { Clock, Upload, RefreshCw, Check, AlertCircle, FileText, Plus, X, Calend
 import { attendanceApi, type Employee, type Attendance, type AuthUser, type EmployeeAttendanceStatus } from '../services/api';
 import { BiometricDeviceCard } from './BiometricDeviceCard';
 import { AttendanceCorrectionRequests } from './AttendanceCorrectionRequests';
+import { AttendanceDayList } from './AttendanceDayList';
 
 interface AttendancePanelProps {
   user: AuthUser | null;
@@ -38,6 +39,8 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
   const [showManualForm, setShowManualForm] = useState(false);
   const [savingManual, setSavingManual] = useState(false);
   const [showSelfCorrection, setShowSelfCorrection] = useState(false);
+  // Phones: HR's device status + sheet upload stay folded away until asked for.
+  const [showHrTools, setShowHrTools] = useState(false);
   const [savingCorrection, setSavingCorrection] = useState(false);
   const [correctionRefreshKey, setCorrectionRefreshKey] = useState(0);
   const [correctionForm, setCorrectionForm] = useState({
@@ -239,7 +242,24 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
         </div>
       )}
 
-      {isHR && <BiometricDeviceCard />}
+      {isHR && (
+        <button
+          type="button"
+          onClick={() => setShowHrTools(open => !open)}
+          className="lg:hidden w-full flex items-center justify-between gap-3 px-4 py-3 bg-white rounded-2xl border border-orange-100/60 shadow-card text-sm font-bold text-slate-700"
+        >
+          <span className="flex items-center gap-2">
+            <Upload className="w-4 h-4 text-[#f46617]" /> HR tools: device status & sheet upload
+          </span>
+          <span className="text-xs text-[#f46617]">{showHrTools ? 'Hide' : 'Show'}</span>
+        </button>
+      )}
+
+      {isHR && (
+        <div className={showHrTools ? '' : 'hidden lg:block'}>
+          <BiometricDeviceCard />
+        </div>
+      )}
 
       <AttendanceCorrectionRequests
         canReview={canBrowseEmployeeAttendance}
@@ -251,7 +271,7 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
 
       {/* HR Actions Panel */}
       {isHR && (
-        <div className="bg-white rounded-[32px] p-6 border border-orange-100/50 shadow-card">
+        <div className={`bg-white rounded-[32px] p-4 sm:p-6 border border-orange-100/50 shadow-card ${showHrTools ? '' : 'hidden lg:block'}`}>
           <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
             <Upload className="w-5 h-5 text-[#f46617]" />
             Upload Attendance Data Sheet
@@ -323,10 +343,32 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
       )}
 
       {/* Grid container: Employee selection and attendance log grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar employee list for scoped attendance browsing */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
+        {/* Phones: a dropdown instead of the long employee list */}
         {canBrowseEmployeeAttendance && (
-          <div className="bg-white rounded-[32px] p-4 border border-orange-100/50 shadow-card space-y-3 lg:col-span-1">
+          <label className="lg:hidden flex items-center gap-3 bg-white rounded-2xl px-4 py-3 border border-orange-100/60 shadow-card">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex-shrink-0">Viewing</span>
+            <select
+              value={selectedEmployeeId ?? ''}
+              onChange={event => setSelectedEmployeeId(Number(event.target.value))}
+              className="flex-1 min-w-0 bg-transparent text-sm font-bold text-slate-800 focus:outline-none"
+            >
+              {sidebarSections.map(section => (
+                <optgroup key={section.title} label={section.title}>
+                  {section.employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.id === user?.employeeId ? `${emp.name} (You)` : emp.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {/* Sidebar employee list for scoped attendance browsing (desktop) */}
+        {canBrowseEmployeeAttendance && (
+          <div className="hidden lg:block bg-white rounded-[32px] p-4 border border-orange-100/50 shadow-card space-y-3 lg:col-span-1">
             <div className="max-h-[450px] overflow-y-auto space-y-4 pr-1">
               {sidebarSections.map((section) => (
                 <div key={section.title} className="space-y-1">
@@ -576,7 +618,7 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
 
           {/* Monthly stats breakdown */}
           {summary && (
-            <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3 mb-4 sm:mb-6">
               {[
                 { label: 'Present', value: summary.present, color: 'text-emerald-600 bg-emerald-50 border border-emerald-100/30' },
                 { label: 'Absent', value: summary.absent, color: 'text-red-650 bg-red-50 border border-red-100/30' },
@@ -585,8 +627,8 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
                 { label: 'Avg Late Time', value: `${summary.avgLateMinutes || 0}m`, color: 'text-cyan-600 bg-cyan-50 border border-cyan-100/30' },
                 { label: 'Overtime Days', value: summary.overtimeDays, color: 'text-purple-600 bg-purple-50 border border-purple-100/30' },
               ].map((stat) => (
-                <div key={stat.label} className={`rounded-2xl p-3 text-center ${stat.color}`}>
-                  <p className="text-xl font-black">{stat.value}</p>
+                <div key={stat.label} className={`rounded-2xl p-2.5 sm:p-3 text-center ${stat.color}`}>
+                  <p className="text-lg sm:text-xl font-black">{stat.value}</p>
                   <p className="text-[10px] font-bold uppercase tracking-wider opacity-80 mt-1">{stat.label}</p>
                 </div>
               ))}
@@ -605,7 +647,11 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
               <p className="text-xs text-slate-400 mt-1">Try changing the Target Month or uploading a sheet</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="sm:hidden">
+              <AttendanceDayList records={attendance} />
+            </div>
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-left text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-orange-100/40 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
@@ -677,6 +723,7 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       </div>

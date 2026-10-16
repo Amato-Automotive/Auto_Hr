@@ -36,13 +36,16 @@ const leaveActionSchema = z.object({
     reason: z.string().optional(), // rejection reason
 });
 
-/** "Casual Leave leave from 2026-10-01 to 2026-10-02" or "Short Leave (Morning) on 2026-10-01". */
+/** "Casual Leave" stays as is; a bare type like "Comp Off" becomes "Comp Off leave". */
+const leaveLabel = (type: string) => (/leave$/i.test(type.trim()) ? type : `${type} leave`);
+
+/** "Casual Leave from 2026-10-01 to 2026-10-02" or "Short Leave (Morning) on 2026-10-01". */
 function describeLeave(leave: { type: string; startDate: Date; endDate: Date }): string {
     const start = leave.startDate.toISOString().split('T')[0];
     const end = leave.endDate.toISOString().split('T')[0];
     return isShortLeave(leave.type)
         ? `${leave.type} on ${start} (${SHORT_LEAVE_WINDOWS[leave.type]})`
-        : `${leave.type} leave from ${start} to ${end}`;
+        : `${leaveLabel(leave.type)} from ${start} to ${end}`;
 }
 
 async function canManageLeaveByHierarchy(
@@ -239,7 +242,7 @@ router.post(
                 title: `${leave.employee.name} applied for leave`,
                 message: shortLeave
                     ? `${leave.type} on ${startDate.slice(0, 10)}, ${SHORT_LEAVE_WINDOWS[type]} (${SHORT_LEAVE_HOURS} hours)${reason ? `. Reason: ${reason}` : ''}`
-                    : `${leave.type} leave from ${startDate} to ${endDate} (${days} day${days > 1 ? 's' : ''})${reason ? `. Reason: ${reason}` : ''}`,
+                    : `${leaveLabel(leave.type)} from ${startDate} to ${endDate} (${days} day${days > 1 ? 's' : ''})${reason ? `. Reason: ${reason}` : ''}`,
                 entityId: leave.id,
                 employeeId: req.user.employeeId,
             });

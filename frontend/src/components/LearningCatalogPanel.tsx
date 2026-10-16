@@ -119,7 +119,7 @@ export const LearningCatalogPanel: React.FC<LearningCatalogPanelProps> = ({ role
         {isHR && (
           <button
             onClick={() => setShowComposer(true)}
-            className="btn-orange px-4 py-2.5 text-xs font-bold rounded-2xl"
+            className="btn-orange px-4 py-2.5 text-xs font-bold rounded-2xl whitespace-nowrap flex-shrink-0"
           >
             <Plus className="w-4 h-4" /> New Course
           </button>
@@ -150,7 +150,7 @@ export const LearningCatalogPanel: React.FC<LearningCatalogPanelProps> = ({ role
                 key={course.id}
                 className="bg-white rounded-[24px] border border-orange-100/50 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col"
               >
-                <div className="h-32 bg-gradient-to-br from-orange-100 to-amber-50 flex items-center justify-center overflow-hidden">
+                <div className="h-24 sm:h-32 bg-gradient-to-br from-orange-100 to-amber-50 flex items-center justify-center overflow-hidden">
                   {course.thumbnailUrl ? (
                     <img src={course.thumbnailUrl} alt="" className="w-full h-full object-cover" />
                   ) : (

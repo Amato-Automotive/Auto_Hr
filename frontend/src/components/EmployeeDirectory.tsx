@@ -116,6 +116,8 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
   const [sort, setSort] = useState<SortKey>('name-asc');
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [page, setPage] = useState(1);
+  // Phones show only the search box until "Filters" is tapped.
+  const [showFilters, setShowFilters] = useState(false);
   const [view, setView] = useState<ViewMode>(() => {
     try {
       return localStorage.getItem(VIEW_STORAGE_KEY) === 'grid' ? 'grid' : 'table';
@@ -214,13 +216,13 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-800 tracking-tight">Employees</h2>
-          <p className="text-sm text-slate-500 font-medium mt-0.5">Your company directory — search, filter and open any profile.</p>
+          <p className="hidden sm:block text-sm text-slate-500 font-medium mt-0.5">Your company directory — search, filter and open any profile.</p>
         </div>
         {actions && <div className="flex items-center gap-3 self-start md:self-auto">{actions}</div>}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Stats (tablet/desktop; phones get the count line and an "incomplete" chip below) */}
+      <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard icon={<Users className="w-5 h-5" />} label="Total employees" value={stats.total} />
         <StatCard icon={<Building2 className="w-5 h-5" />} label="Departments" value={stats.departments} />
         <StatCard icon={<UserPlus2 className="w-5 h-5" />} label="Joined (30 days)" value={stats.newJoiners} />
@@ -240,6 +242,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
 
       {/* Toolbar */}
       <div className="flex flex-col xl:flex-row gap-3">
+        <div className="flex gap-2 flex-1 min-w-0">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -251,7 +254,17 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange transition-all placeholder-slate-400"
           />
         </div>
-        <div className="flex flex-wrap sm:flex-nowrap gap-3">
+        <button
+          type="button"
+          onClick={() => setShowFilters(open => !open)}
+          className={`sm:hidden flex items-center gap-1.5 px-3.5 rounded-2xl border text-xs font-bold transition-colors ${
+            showFilters || department !== 'ALL' || employeeType !== 'ALL' ? 'bg-orange-50 border-orange-200 text-[#f46617]' : 'bg-white border-slate-200 text-slate-600'
+          }`}
+        >
+          <Filter className="w-4 h-4" /> Filters
+        </button>
+        </div>
+        <div className={`${showFilters ? 'flex' : 'hidden'} sm:flex flex-wrap sm:flex-nowrap gap-3`}>
           <DropdownSelect
             value={department}
             onChange={setDepartment}
@@ -310,6 +323,15 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
             ? `${employees.length} ${employees.length === 1 ? 'employee' : 'employees'}`
             : `${filtered.length} of ${employees.length} employees`}
         </p>
+        {showAdminInsights && stats.incomplete > 0 && !onlyIncomplete && (
+          <button
+            type="button"
+            onClick={() => setOnlyIncomplete(true)}
+            className="sm:hidden inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-[11px] font-bold ring-1 ring-inset ring-amber-200/70"
+          >
+            <AlertCircle className="w-3 h-3" /> {stats.incomplete} incomplete
+          </button>
+        )}
         {activeFilters.map(filter => (
           <button
             key={filter.key}
@@ -408,7 +430,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
           )}
 
           {/* Cards (always on mobile; md+ when card view selected) */}
-          <div className={`grid gap-4 sm:grid-cols-2 xl:grid-cols-3 ${view === 'table' ? 'md:hidden' : ''}`}>
+          <div className={`grid gap-2 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3 ${view === 'table' ? 'md:hidden' : ''}`}>
             {pageItems.map(e => (
               <div
                 key={e.id}
@@ -416,21 +438,22 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                 tabIndex={0}
                 onClick={() => onOpenProfile(e.id)}
                 onKeyDown={event => openOnKey(event, e.id)}
-                className="group bg-white rounded-3xl border border-slate-200/70 p-5 hover:border-orange-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#f46617]/25 transition-all cursor-pointer flex flex-col"
+                className="group bg-white rounded-2xl sm:rounded-3xl border border-slate-200/70 p-3 sm:p-5 hover:border-orange-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#f46617]/25 transition-all cursor-pointer flex flex-col"
               >
-                <div className="flex items-start gap-3">
-                  <EmployeeAvatar name={e.name} avatar={e.avatar} gender={e.gender} size="w-12 h-12" shape="rounded" />
+                <div className="flex items-center sm:items-start gap-3">
+                  <EmployeeAvatar name={e.name} avatar={e.avatar} gender={e.gender} size="w-11 h-11 sm:w-12 sm:h-12" shape="rounded" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 min-w-0">
                       <p className="text-sm font-black text-slate-800 truncate group-hover:text-[#f46617] transition-colors">{e.name}</p>
                       <RolePill employee={e} />
                     </div>
                     <p className="text-xs text-slate-500 font-medium truncate mt-0.5">{e.position || 'No designation set'}</p>
-                    <div className="mt-2"><DepartmentChip department={e.department} /></div>
+                    <div className="mt-1.5 sm:mt-2"><DepartmentChip department={e.department} /></div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#f46617] transition-colors flex-shrink-0 mt-1" />
                 </div>
-                <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs font-medium text-slate-500">
+                {/* Contact details: on the profile for phones */}
+                <div className="hidden sm:block mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs font-medium text-slate-500">
                   <p className="flex items-center gap-2 truncate"><Mail className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />{e.email || <Empty />}</p>
                   <p className="flex items-center gap-2 truncate"><Phone className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />{e.phone || <Empty />}</p>
                   {e.manager?.name && (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Plus, Loader2, AlertCircle, Check, X, Calendar } from 'lucide-react';
 import { attendanceApi, type Attendance, type AttendanceSummary } from '../../services/api';
+import { AttendanceDayList } from '../AttendanceDayList';
 
 interface AttendanceTabProps {
   employeeId: number;
@@ -246,7 +247,11 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ employeeId, isHR, 
             <p className="text-xs mt-1 text-slate-400 font-medium">Select another month or update logs</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="sm:hidden px-4">
+            <AttendanceDayList records={attendance} />
+          </div>
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse">
               <thead>
                 <tr className="border-b border-orange-100/40 text-slate-400 font-bold uppercase tracking-wider text-[10px] bg-orange-50/60">
@@ -318,6 +323,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ employeeId, isHR, 
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>
