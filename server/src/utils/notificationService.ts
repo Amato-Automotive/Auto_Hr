@@ -2,6 +2,9 @@ import prisma from '../config/db.js';
 
 export type NotificationType =
     | 'ATTENDANCE_CORRECTION'
+    | 'ATTENDANCE_CORRECTION_REQUESTED'
+    | 'ATTENDANCE_CORRECTION_APPROVED'
+    | 'ATTENDANCE_CORRECTION_REJECTED'
     | 'LEAVE_APPLIED'
     | 'LEAVE_APPROVED'
     | 'LEAVE_REJECTED'

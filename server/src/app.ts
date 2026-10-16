@@ -10,6 +10,7 @@ import authRouter from './routes/auth.js';
 import employeeRouter from './routes/employees.js';
 import leaveRouter from './routes/leaves.js';
 import attendanceRouter from './routes/attendance.js';
+import attendanceCorrectionRouter from './routes/attendanceCorrections.js';
 import salaryRouter from './routes/salary.js';
 import announcementRouter from './routes/announcements.js';
 import heroBannerRouter from './routes/heroBanners.js';
@@ -89,6 +90,8 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/employees', employeeRouter);
 app.use('/api/leaves', leaveRouter);
+// Before attendanceRouter, whose GET /:employeeId would otherwise swallow /corrections.
+app.use('/api/attendance/corrections', attendanceCorrectionRouter);
 app.use('/api/attendance', attendanceRouter);
 app.use('/api/salary', salaryRouter);
 app.use('/api/announcements', announcementRouter);

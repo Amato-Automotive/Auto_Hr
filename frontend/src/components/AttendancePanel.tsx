@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, Upload, RefreshCw, Check, AlertCircle, FileText, Plus, X, Calendar, Pencil } from 'lucide-react';
 import { attendanceApi, type Employee, type Attendance, type AuthUser, type EmployeeAttendanceStatus } from '../services/api';
 import { BiometricDeviceCard } from './BiometricDeviceCard';
+import { AttendanceCorrectionRequests } from './AttendanceCorrectionRequests';
 
 interface AttendancePanelProps {
   user: AuthUser | null;
@@ -38,8 +39,10 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
   const [savingManual, setSavingManual] = useState(false);
   const [showSelfCorrection, setShowSelfCorrection] = useState(false);
   const [savingCorrection, setSavingCorrection] = useState(false);
+  const [correctionRefreshKey, setCorrectionRefreshKey] = useState(0);
   const [correctionForm, setCorrectionForm] = useState({
-    date: '',
+    startDate: '',
+    endDate: '',
     status: 'WFH' as EmployeeAttendanceStatus,
     checkIn: '',
     checkOut: '',
@@ -170,25 +173,26 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
 
   const handleSelfCorrection = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.employeeId || !correctionForm.date || !correctionForm.reason.trim()) return;
+    if (!user?.employeeId || !correctionForm.startDate || !correctionForm.reason.trim()) return;
     setSavingCorrection(true);
     setError(null);
     setSuccessMsg(null);
     try {
-      const response = await attendanceApi.correctOwn({
-        employeeId: user.employeeId,
-        date: correctionForm.date,
+      const response = await attendanceApi.requestCorrection({
+        startDate: correctionForm.startDate,
+        endDate: correctionForm.endDate || correctionForm.startDate,
         status: correctionForm.status,
         checkIn: correctionForm.checkIn || undefined,
         checkOut: correctionForm.checkOut || undefined,
         reason: correctionForm.reason.trim(),
       });
-      setSuccessMsg(response.message || 'Attendance updated and notifications sent');
+      setSuccessMsg(response.message || 'Correction sent for approval');
       setShowSelfCorrection(false);
-      setCorrectionForm({ date: '', status: 'WFH', checkIn: '', checkOut: '', reason: '' });
-      await loadAttendance();
+      setCorrectionForm({ startDate: '', endDate: '', status: 'WFH', checkIn: '', checkOut: '', reason: '' });
+      // Attendance itself only changes on approval; just show the new pending request.
+      setCorrectionRefreshKey(key => key + 1);
     } catch (err: any) {
-      setError(err.message || 'Failed to update attendance');
+      setError(err.message || 'Failed to send the correction');
     } finally {
       setSavingCorrection(false);
     }
@@ -236,6 +240,14 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
       )}
 
       {isHR && <BiometricDeviceCard />}
+
+      <AttendanceCorrectionRequests
+        canReview={canBrowseEmployeeAttendance}
+        refreshKey={correctionRefreshKey}
+        onApproved={employeeId => {
+          if (employeeId === selectedEmployeeId) void loadAttendance();
+        }}
+      />
 
       {/* HR Actions Panel */}
       {isHR && (
@@ -388,21 +400,40 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
               <div className="flex items-center justify-between border-b border-orange-100 pb-3">
                 <div>
                   <h4 className="text-slate-800 font-black text-sm">Correct My Attendance</h4>
-                  <p className="text-xs text-slate-400 mt-1">Changes apply immediately and notify your managers and HR.</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Pick one date or a range. Your manager and HR are notified, and it applies once one of them approves.
+                    Sundays, holidays and approved leave in a range are left as they are.
+                  </p>
                 </div>
                 <button type="button" onClick={() => setShowSelfCorrection(false)} className="p-1 text-slate-400 hover:text-slate-700">
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Date *</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">From *</label>
                   <input
                     type="date"
                     required
                     max={new Date().toISOString().split('T')[0]}
-                    value={correctionForm.date}
-                    onChange={e => setCorrectionForm(previous => ({ ...previous, date: e.target.value }))}
+                    value={correctionForm.startDate}
+                    onChange={e => setCorrectionForm(previous => ({
+                      ...previous,
+                      startDate: e.target.value,
+                      // Keep the range valid: an end date before the new start is dropped.
+                      endDate: previous.endDate && previous.endDate < e.target.value ? '' : previous.endDate,
+                    }))}
+                    className="w-full bg-white text-slate-800 text-sm rounded-xl px-3 py-2 border border-orange-100 focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">To (optional)</label>
+                  <input
+                    type="date"
+                    min={correctionForm.startDate || undefined}
+                    max={new Date().toISOString().split('T')[0]}
+                    value={correctionForm.endDate}
+                    onChange={e => setCorrectionForm(previous => ({ ...previous, endDate: e.target.value }))}
                     className="w-full bg-white text-slate-800 text-sm rounded-xl px-3 py-2 border border-orange-100 focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
                   />
                 </div>
@@ -446,7 +477,7 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setShowSelfCorrection(false)} disabled={savingCorrection} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-xl">Cancel</button>
                 <button type="submit" disabled={savingCorrection} className="btn-orange px-5 py-2 text-xs font-bold rounded-xl">
-                  {savingCorrection ? <><RefreshCw className="w-4 h-4 animate-spin" /> Saving...</> : 'Save Correction'}
+                  {savingCorrection ? <><RefreshCw className="w-4 h-4 animate-spin" /> Sending...</> : 'Send for Approval'}
                 </button>
               </div>
             </form>

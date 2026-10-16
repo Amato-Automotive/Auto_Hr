@@ -255,17 +255,39 @@ export const attendanceApi = {
         });
     },
 
-    correctOwn: (data: {
-        employeeId: number;
-        date: string;
+    /** Employee asks to correct their own attendance (one day or a range); applies once HR or a manager approves. */
+    requestCorrection: (data: {
+        startDate: string;
+        endDate?: string;
         status: EmployeeAttendanceStatus;
         checkIn?: string;
         checkOut?: string;
         reason: string;
-    }) => request<{ attendance: Attendance }>('/attendance/self-correction', {
+    }) => request<{ request: AttendanceCorrectionRequest }>('/attendance/corrections', {
         method: 'POST',
         body: JSON.stringify(data),
     }),
+
+    /** `mine`: own requests. `review`: requests this user can approve (pending by default). */
+    listCorrections: (scope: 'mine' | 'review', state?: CorrectionRequestState) =>
+        request<{ requests: AttendanceCorrectionRequest[] }>(
+            `/attendance/corrections?${new URLSearchParams({ scope, ...(state ? { state } : {}) })}`
+        ),
+
+    approveCorrection: (id: number, comment?: string) =>
+        request<{ request: AttendanceCorrectionRequest; daysUpdated: number }>(`/attendance/corrections/${id}/approve`, {
+            method: 'POST',
+            body: JSON.stringify({ comment }),
+        }),
+
+    rejectCorrection: (id: number, comment?: string) =>
+        request<{ request: AttendanceCorrectionRequest }>(`/attendance/corrections/${id}/reject`, {
+            method: 'POST',
+            body: JSON.stringify({ comment }),
+        }),
+
+    cancelCorrection: (id: number) =>
+        request(`/attendance/corrections/${id}/cancel`, { method: 'POST' }),
 
     uploadBiometric: (file: File, targetMonth?: string) => {
         const formData = new FormData();
@@ -917,6 +939,25 @@ export interface Leave {
     approvedBy?: { id: number; username: string } | null;
     approverIds?: string | null;
     comment?: string | null;
+}
+
+export type CorrectionRequestState = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+
+export interface AttendanceCorrectionRequest {
+    id: number;
+    employeeId: number;
+    startDate: string;
+    endDate: string;
+    status: EmployeeAttendanceStatus;
+    checkIn: string | null;
+    checkOut: string | null;
+    reason: string;
+    state: CorrectionRequestState;
+    reviewComment: string | null;
+    reviewedAt: string | null;
+    createdAt: string;
+    employee: { id: number; name: string; department: string | null; position: string | null };
+    reviewedBy: { username: string; employee: { name: string } | null } | null;
 }
 
 export type EmployeeAttendanceStatus =

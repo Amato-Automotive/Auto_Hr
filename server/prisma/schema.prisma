@@ -33,6 +33,8 @@ model User {
   badgesCreated        Badge[]
   notifications       Notification[] @relation("NotificationRecipient")
   attendanceCorrections AttendanceCorrection[] @relation("AttendanceCorrectionEditor")
+  attendanceCorrectionRequests AttendanceCorrectionRequest[] @relation("AttendanceCorrectionRequester")
+  attendanceCorrectionReviews  AttendanceCorrectionRequest[] @relation("AttendanceCorrectionReviewer")
   employeeDocumentsUploaded EmployeeDocument[]
   documentDownloads   EmployeeDocumentDownload[]
   libraryDocumentsUploaded LibraryDocument[]
@@ -86,6 +88,7 @@ model Employee {
   enrollments      Enrollment[]
   quizAttempts     QuizAttempt[]
   attendanceCorrections AttendanceCorrection[]
+  attendanceCorrectionRequests AttendanceCorrectionRequest[]
   pathEnrollments  PathEnrollment[]
   iltRegistrations ILTRegistration[]
   badges           EmployeeBadge[]
@@ -193,6 +196,42 @@ model AttendanceCorrection {
   @@index([employeeId, date])
   @@index([editedById])
   @@map("attendance_corrections")
+}
+
+/// An employee's request to correct their own attendance for one day or a date range. Nothing
+/// changes until HR or one of the employee's managers approves it (the first decision wins);
+/// approval writes the attendance rows plus one AttendanceCorrection audit row per day.
+model AttendanceCorrectionRequest {
+  id            Int                    @id @default(autoincrement())
+  employeeId    Int                    @map("employee_id")
+  requestedById Int                    @map("requested_by_id")
+  startDate     DateTime               @map("start_date") @db.Date
+  endDate       DateTime               @map("end_date") @db.Date
+  status        AttendanceStatus
+  checkIn       String?                @map("check_in") @db.VarChar(10)
+  checkOut      String?                @map("check_out") @db.VarChar(10)
+  reason        String                 @db.Text
+  state         CorrectionRequestState @default(PENDING)
+  reviewedById  Int?                   @map("reviewed_by_id")
+  reviewedAt    DateTime?              @map("reviewed_at")
+  reviewComment String?                @map("review_comment") @db.Text
+  createdAt     DateTime               @default(now()) @map("created_at")
+  employee      Employee               @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  requestedBy   User                   @relation("AttendanceCorrectionRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedBy    User?                  @relation("AttendanceCorrectionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, state])
+  @@index([state])
+  @@index([requestedById])
+  @@index([reviewedById])
+  @@map("attendance_correction_requests")
+}
+
+enum CorrectionRequestState {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
 
 model Notification {

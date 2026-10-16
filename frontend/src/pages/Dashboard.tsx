@@ -181,6 +181,9 @@ const Dashboard: React.FC = () => {
   const handleOpenNotification = (notification: AppNotification) => {
     switch (notification.type) {
       case 'ATTENDANCE_CORRECTION':
+      case 'ATTENDANCE_CORRECTION_REQUESTED':
+      case 'ATTENDANCE_CORRECTION_APPROVED':
+      case 'ATTENDANCE_CORRECTION_REJECTED':
         setFocusAttendanceEmployeeId(notification.employeeId);
         setActiveTab('attendance');
         break;

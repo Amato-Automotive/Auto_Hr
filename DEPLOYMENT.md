@@ -114,6 +114,9 @@ npx prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schem
 and apply only the statements your change needs (via `mysql` with the credentials in
 `.db_credentials`). Take a backup first (§7).
 
+Ready-made scripts for past schema changes live in `server/prisma/sql/` (dated). Apply each one
+once, in date order, before restarting `hr-api` with code that needs it.
+
 ---
 
 ## 5. Making FRONTEND changes live
