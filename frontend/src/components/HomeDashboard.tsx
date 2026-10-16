@@ -54,7 +54,7 @@ const Card: React.FC<{
   children: React.ReactNode;
 }> = ({ title, icon, action, subtitle, className = '', children }) => (
   <section className={`bg-white rounded-[24px] border border-orange-100/50 shadow-card p-4 sm:p-6 min-w-0 ${className}`}>
-    <div className="flex items-start justify-between gap-3 mb-5">
+    <div className="flex items-start justify-between gap-3 mb-3 sm:mb-5">
       <div className="min-w-0">
         <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
           {icon && <span className="text-[#f46617]">{icon}</span>}
@@ -98,7 +98,7 @@ const Kpi: React.FC<{
         <Icon className="w-5 h-5 text-white" />
       </div>
     </div>
-    {hint && <p className="text-[11px] sm:text-xs text-slate-500 font-semibold mt-2 sm:mt-3 line-clamp-2 sm:truncate">{hint}</p>}
+    {hint && <p className="text-[11px] sm:text-xs text-slate-500 font-semibold mt-2 sm:mt-3 truncate">{hint}</p>}
   </button>
 );
 
@@ -180,8 +180,12 @@ const PersonRow: React.FC<{
 
 // ─── Sections ─────────────────────────────────────────────────
 
+/** Phones skip cards that would only show an empty state or repeat a KPI tile. */
+const PHONE_HIDDEN = 'hidden sm:block';
+
 const ApprovalsCard: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }> = ({ data, go }) => (
   <Card
+    className={data.approvals.items.length === 0 ? PHONE_HIDDEN : ''}
     title="Pending approvals"
     icon={<ClipboardCheck className="w-4 h-4" />}
     subtitle={data.approvals.count ? `${data.approvals.count} leave ${data.approvals.count === 1 ? 'request needs' : 'requests need'} your decision` : undefined}
@@ -215,8 +219,8 @@ const HolidaysCard: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }
       <EmptyNote icon={<Palmtree className="w-8 h-8 mb-2 text-slate-300" />} text="No upcoming holidays added yet." />
     ) : (
       <ul className="space-y-3">
-        {data.holidays.map(h => (
-          <li key={h.id} className="flex items-center gap-3">
+        {data.holidays.map((h, i) => (
+          <li key={h.id} className={`${i >= 3 ? 'hidden sm:flex' : 'flex'} items-center gap-3`}>
             <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#f46617] flex flex-col items-center justify-center flex-shrink-0 leading-none">
               <span className="text-[10px] font-bold uppercase">{fmtDay(h.date, { month: 'short' })}</span>
               <span className="text-lg font-black">{fmtDay(h.date, { day: 'numeric' })}</span>
@@ -235,7 +239,7 @@ const HolidaysCard: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }
 );
 
 const OnLeaveCard: React.FC<{ data: DashboardSummary; title: string }> = ({ data, title }) => (
-  <Card title={title} icon={<Calendar className="w-4 h-4" />}>
+  <Card title={title} icon={<Calendar className="w-4 h-4" />} className={data.onLeaveToday.length === 0 ? PHONE_HIDDEN : ''}>
     {data.onLeaveToday.length === 0 ? (
       <EmptyNote text="Everyone's in today." />
     ) : (
@@ -296,8 +300,8 @@ const EmployeeHome: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           <Card title="My learning" icon={<GraduationCap className="w-4 h-4" />} action={{ label: 'Open learning', onClick: () => go('learning') }}>
             {me.learning.nextDue ? (
               <div className={`rounded-2xl p-4 ${daysUntil(me.learning.nextDue.dueDate, data.today) < 0 ? 'bg-red-50/70' : 'bg-orange-50/50'}`}>
@@ -312,7 +316,7 @@ const EmployeeHome: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }
             ) : (
               <EmptyNote icon={<GraduationCap className="w-8 h-8 mb-2 text-slate-300" />} text="No courses assigned right now — browse the catalog." />
             )}
-            <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className="hidden sm:grid grid-cols-3 gap-3 mt-4">
               {[
                 ['In progress', me.learning.active],
                 ['Overdue', me.learning.overdue],
@@ -355,7 +359,7 @@ const EmployeeHome: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }
             </div>
           </Card>
         </div>
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {data.approvals.count > 0 && <ApprovalsCard data={data} go={go} />}
           <HolidaysCard data={data} go={go} />
         </div>
@@ -397,16 +401,17 @@ const ManagerHome: React.FC<{ data: DashboardSummary; go: (t: NavTab) => void }>
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card title="Team attendance" icon={<Clock className="w-4 h-4" />} action={{ label: 'Open attendance', onClick: () => go('attendance') }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* On phones this column holds only the approvals card (the rest is hidden there) */}
+        <div className={`lg:col-span-2 space-y-4 sm:space-y-6 ${data.approvals.items.length === 0 ? 'hidden sm:block' : ''}`}>
+          <Card className={PHONE_HIDDEN} title="Team attendance" icon={<Clock className="w-4 h-4" />} action={{ label: 'Open attendance', onClick: () => go('attendance') }}>
             {att ? <AttendanceBreakdown snapshot={att} today={data.today} /> : (
               <EmptyNote icon={<Clock className="w-8 h-8 mb-2 text-slate-300" />} text={team?.size ? 'No attendance uploaded for your team yet.' : 'No one reports to you yet.'} />
             )}
           </Card>
           <ApprovalsCard data={data} go={go} />
         </div>
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <OnLeaveCard data={data} title="Team on leave today" />
           <HolidaysCard data={data} go={go} />
         </div>
@@ -476,16 +481,17 @@ const OrgHome: React.FC<{ data: DashboardSummary; role: UserRole; go: (t: NavTab
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card title="Attendance" icon={<Clock className="w-4 h-4" />} subtitle="Company-wide" action={{ label: 'Open attendance', onClick: () => go('attendance') }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* On phones this column holds only the approvals card (the rest is hidden there) */}
+        <div className={`lg:col-span-2 space-y-4 sm:space-y-6 ${data.approvals.items.length === 0 ? 'hidden sm:block' : ''}`}>
+          <Card className={PHONE_HIDDEN} title="Attendance" icon={<Clock className="w-4 h-4" />} subtitle="Company-wide" action={{ label: 'Open attendance', onClick: () => go('attendance') }}>
             {att ? <AttendanceBreakdown snapshot={att} today={data.today} /> : (
               <EmptyNote icon={<Clock className="w-8 h-8 mb-2 text-slate-300" />} text="No attendance has been uploaded yet." />
             )}
           </Card>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card title="People by department" icon={<Building2 className="w-4 h-4" />} action={{ label: 'Directory', onClick: () => go('employees') }}>
+          <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
+            <Card className={PHONE_HIDDEN} title="People by department" icon={<Building2 className="w-4 h-4" />} action={{ label: 'Directory', onClick: () => go('employees') }}>
               <ul className="space-y-3">
                 {org.departments.slice(0, 7).map(d => (
                   <li key={d.name}>
@@ -507,7 +513,7 @@ const OrgHome: React.FC<{ data: DashboardSummary; role: UserRole; go: (t: NavTab
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {attention.length > 0 && (
             <Card title="Needs attention" icon={<AlertTriangle className="w-4 h-4" />}>
               <ul className="space-y-2">
@@ -597,7 +603,7 @@ export const HomeDashboard: React.FC<{
   const attendanceToday = data?.me?.attendanceToday;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Greeting + quick actions */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
@@ -606,7 +612,7 @@ export const HomeDashboard: React.FC<{
             {greeting()}, {firstName} 👋
           </h2>
           {attendanceToday?.checkIn && (
-            <p className="text-sm text-slate-500 font-semibold mt-1 flex items-center gap-3">
+            <p className="hidden sm:flex text-sm text-slate-500 font-semibold mt-1 items-center gap-3">
               <span className="inline-flex items-center gap-1"><LogIn className="w-3.5 h-3.5 text-emerald-500" /> Checked in {attendanceToday.checkIn.slice(0, 5)}</span>
               {attendanceToday.checkOut && (
                 <span className="inline-flex items-center gap-1"><LogOutIcon className="w-3.5 h-3.5 text-slate-400" /> Out {attendanceToday.checkOut.slice(0, 5)}</span>
@@ -621,7 +627,7 @@ export const HomeDashboard: React.FC<{
               onClick={() => onNavigate(a.tab)}
               className={a.primary
                 ? 'btn-orange px-4 py-2.5 text-xs font-bold rounded-2xl'
-                : 'flex items-center gap-2 px-4 py-2.5 bg-white border border-orange-100 hover:border-orange-200 hover:bg-orange-50/50 text-slate-700 text-xs font-bold rounded-2xl transition-all'}
+                : 'hidden sm:flex items-center gap-2 px-4 py-2.5 bg-white border border-orange-100 hover:border-orange-200 hover:bg-orange-50/50 text-slate-700 text-xs font-bold rounded-2xl transition-all'}
             >
               <a.icon className="w-4 h-4" /> {a.label}
               {a.tab === 'leaves' && a.primary && data && data.approvals.count > 0 && (
@@ -637,7 +643,7 @@ export const HomeDashboard: React.FC<{
           <AlertTriangle className="w-4 h-4" /> {error}
         </div>
       ) : !data ? (
-        <div className="space-y-6" aria-busy="true">
+        <div className="space-y-4 sm:space-y-6" aria-busy="true">
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
             {[0, 1, 2, 3].map(i => <div key={i} className="h-[120px] rounded-[24px] bg-white border border-orange-100/50 animate-pulse" />)}
           </div>

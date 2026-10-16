@@ -56,8 +56,9 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ notification
         )}
       </button>
 
+      {/* Phones/tablets: full-width panel under the top bar (the bell sits at the left there); desktop: below the bell. */}
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 max-h-[28rem] bg-white rounded-3xl border border-orange-100/60 shadow-2xl overflow-hidden flex flex-col z-50 animate-scale-in">
+        <div className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+68px)] lg:absolute lg:inset-x-auto lg:right-0 lg:top-full mt-0 lg:mt-2 lg:w-80 max-h-[70dvh] lg:max-h-[28rem] bg-white rounded-3xl border border-orange-100/60 shadow-2xl overflow-hidden flex flex-col z-50 animate-scale-in">
           <div className="flex items-center justify-between px-5 py-4 border-b border-orange-100/60">
             <h3 className="text-sm font-black text-slate-800">Notifications</h3>
             {unreadCount > 0 && (

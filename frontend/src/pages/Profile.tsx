@@ -194,10 +194,10 @@ export const ProfileView: React.FC<{
   ];
 
   return (
-    <div className="bg-white rounded-[40px] overflow-hidden border border-orange-100/60 shadow-island font-sans">
+    <div className="bg-white rounded-[28px] sm:rounded-[40px] overflow-hidden border border-orange-100/60 shadow-island font-sans">
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-orange-50 via-amber-50/50 to-orange-50/20 border-b border-orange-100/60">
-        <div className="mx-auto px-6 pt-6 pb-0">
+        <div className="mx-auto px-4 sm:px-6 pt-5 sm:pt-6 pb-0">
           {/* Back */}
           {!hideBack && (
             <button
@@ -209,21 +209,21 @@ export const ProfileView: React.FC<{
           )}
 
           {/* Profile header */}
-          <div className="flex flex-col md:flex-row items-start gap-6 pb-6">
+          <div className="flex flex-row items-start gap-4 md:gap-6 pb-4 md:pb-6">
             {/* Avatar */}
             <EmployeeAvatar
               name={employee.name}
               avatar={employee.avatar}
               gender={employee.gender}
-              size="w-20 h-20"
+              size="w-16 h-16 md:w-20 md:h-20"
               shape="rounded"
-              className="shadow-xl shadow-orange-200/50"
+              className="shadow-xl shadow-orange-200/50 flex-shrink-0"
             />
 
             {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-black text-slate-800 leading-tight">{employee.name}</h1>
+                <h1 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">{employee.name}</h1>
                 {employee.user && (
                   <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${getRoleBadgeClasses(employee.user.role)}`}>
                     {employee.user.role}
@@ -231,36 +231,36 @@ export const ProfileView: React.FC<{
                 )}
               </div>
               <p className="text-sm font-semibold text-slate-500 mt-0.5">{employee.position || 'No position set'}</p>
-              <div className="flex items-center gap-4 mt-3 flex-wrap">
+              <div className="flex items-center gap-x-4 gap-y-1.5 mt-2 md:mt-3 flex-wrap">
                 {employee.department && (
-                  <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-450">
-                    <Building2 className="w-4 h-4 text-[#f46617]" /> {employee.department}
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                    <Building2 className="w-3.5 h-3.5 text-[#f46617]" /> {employee.department}
                   </span>
                 )}
                 {employee.email && (
-                  <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-455">
-                    <Mail className="w-4 h-4 text-[#f46617]" /> {employee.email}
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 min-w-0 break-all">
+                    <Mail className="w-3.5 h-3.5 text-[#f46617] flex-shrink-0" /> {employee.email}
                   </span>
                 )}
                 {employee.phone && (
-                  <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-455">
-                    <Phone className="w-4 h-4 text-[#f46617]" /> {employee.phone}
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                    <Phone className="w-3.5 h-3.5 text-[#f46617]" /> {employee.phone}
                   </span>
                 )}
                 {employee.dateOfBirth && (
-                  <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-455">
-                    <Cake className="w-4 h-4 text-[#f46617]" /> Birthday {new Date(employee.dateOfBirth).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                    <Cake className="w-3.5 h-3.5 text-[#f46617]" /> Birthday {new Date(employee.dateOfBirth).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
                   </span>
                 )}
                 {employee.joinDate && (
-                  <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-455">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                     <Calendar className="w-4 h-4 text-[#f46617]" /> Joined {new Date(employee.joinDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
                   </span>
                 )}
               </div>
 
               {/* Manager + Direct Reports */}
-              <div className="flex items-start gap-4 mt-4 flex-wrap">
+              <div className="flex items-start gap-4 mt-3 md:mt-4 flex-wrap">
                 {(employee.managers && employee.managers.length > 0) || employee.manager ? (
                   <div className="flex flex-col gap-1.5">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reports to:</span>
@@ -287,7 +287,7 @@ export const ProfileView: React.FC<{
                   </div>
                 ) : null}
                 {employee.directReports && employee.directReports.length > 0 && (
-                  <div className="flex flex-col gap-1.5">
+                  <div className="hidden md:flex flex-col gap-1.5">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                       <Users className="w-3.5 h-3.5" /> Team:
                     </span>
@@ -308,21 +308,21 @@ export const ProfileView: React.FC<{
             </div>
 
             {/* Score Ring */}
-            <div className="flex-shrink-0 flex flex-col items-center gap-1.5 self-center md:self-start">
+            <div className="hidden md:flex flex-shrink-0 flex-col items-center gap-1.5 self-start">
               <ScoreDisplay score={summary?.overallScore ?? null} />
               <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wider mt-1">Performance</span>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-1 sm:gap-2 mt-2 sm:mt-4 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto no-scrollbar">
             {tabs.map(tab => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-5 py-3 text-sm font-bold transition-all border-b-2 relative ${
+                  className={`px-3 sm:px-5 py-3 text-sm font-bold transition-all border-b-2 relative whitespace-nowrap flex-shrink-0 ${
                     isActive
                       ? 'text-[#f46617] border-[#f46617]'
                       : 'text-slate-500 border-transparent hover:text-slate-800'
@@ -343,7 +343,7 @@ export const ProfileView: React.FC<{
       </div>
 
       {/* Tab Content */}
-      <div className="mx-auto px-6 py-6 bg-white">
+      <div className="mx-auto px-4 sm:px-6 py-4 sm:py-6 bg-white">
         {activeTab === 'about' && <AboutSection employee={employee} isHR={isHR} isOwnProfile={isOwnProfile} onRefresh={reloadAfterChange} onEmployeeRemoved={onEmployeeRemoved} />}
         {activeTab === 'performance' && (
           <PerformanceTab
@@ -705,7 +705,7 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
         </div>
       )}
       {isHR && !editing && (
-        <div className="flex justify-end gap-3 mb-2">
+        <div className="flex flex-wrap justify-end gap-2 sm:gap-3 mb-3">
           {!isOwnProfile && (
             <button
               onClick={() => setConfirmDelete(true)}
@@ -716,14 +716,14 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
               Delete Permanently
             </button>
           )}
-          <button
+          {!isOwnProfile && <button
             onClick={handleDeactivate}
             disabled={deactivating}
             className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-sm shadow-red-500/10"
           >
             {deactivating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Deactivate Profile
-          </button>
+          </button>}
           <button
             onClick={startEditing}
             className="btn-orange px-4 py-2 text-xs font-bold rounded-2xl"
@@ -1131,57 +1131,60 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Bio */}
-          <div className="md:col-span-2 bg-white rounded-3xl p-6 border border-orange-100/50 shadow-card">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* About: bio, skills, education, experience in one card — only what's filled in */}
+          <div className="md:col-span-2 bg-white rounded-3xl p-4 sm:p-6 border border-orange-100/50 shadow-card">
             <h3 className="text-slate-800 font-black text-sm mb-3 flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-[#f46617]" />
-              Bio Description
+              About
             </h3>
-            <p className="text-slate-600 text-sm leading-relaxed font-medium">
-              {employee.bio || <span className="italic text-slate-400">No bio description added yet</span>}
-            </p>
-          </div>
-
-          {/* Skills */}
-          <div className="bg-white rounded-3xl p-6 border border-orange-100/50 shadow-card">
-            <h3 className="text-slate-800 font-black text-sm mb-3.5 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-orange-500" />
-              Specialist Skills
-            </h3>
-            {skills.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {skills.map((s, i) => (
-                  <span key={i} className="text-xs font-bold px-3 py-1 bg-orange-50 text-[#f46617] border border-orange-100/60 rounded-full">
-                    {s}
-                  </span>
-                ))}
-              </div>
+            {!employee.bio && skills.length === 0 && !employee.education && !employee.experience ? (
+              <p className="text-slate-400 text-sm italic font-medium">
+                {isOwnProfile ? 'Nothing added yet — use Edit to add a bio, skills, education and experience.' : 'Nothing added yet.'}
+              </p>
             ) : (
-              <p className="text-slate-400 text-sm italic font-medium">No special skills listed yet</p>
+              <div className="space-y-4">
+                {employee.bio && <p className="text-slate-600 text-sm leading-relaxed font-medium">{employee.bio}</p>}
+                {skills.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-orange-500" /> Skills
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {skills.map((s, i) => (
+                        <span key={i} className="text-xs font-bold px-3 py-1 bg-orange-50 text-[#f46617] border border-orange-100/60 rounded-full">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(employee.education || employee.experience) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {employee.education && (
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                          <GraduationCap className="w-3.5 h-3.5 text-[#f46617]" /> Education
+                        </p>
+                        <p className="text-slate-700 text-sm font-semibold">{employee.education}</p>
+                      </div>
+                    )}
+                    {employee.experience && (
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                          <Briefcase className="w-3.5 h-3.5 text-[#f46617]" /> Experience
+                        </p>
+                        <p className="text-slate-700 text-sm font-semibold">{employee.experience}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Education & Experience */}
-          <div className="bg-white rounded-3xl p-6 border border-orange-100/50 shadow-card space-y-4">
-            <div>
-              <h3 className="text-slate-800 font-black text-sm mb-1.5 flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-[#f46617]" />
-                Education Details
-              </h3>
-              <p className="text-slate-650 text-sm font-semibold">{employee.education || <span className="italic text-slate-400 font-medium">Not specified</span>}</p>
-            </div>
-            <div>
-              <h3 className="text-slate-800 font-black text-sm mb-1.5 flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-[#f46617]" />
-                Professional Experience
-              </h3>
-              <p className="text-slate-655 text-sm font-semibold">{employee.experience || <span className="italic text-slate-400 font-medium">Not specified</span>}</p>
-            </div>
-          </div>
-
           {/* Details */}
-          <div className="md:col-span-2 bg-white rounded-3xl p-6 border border-orange-100/50 shadow-card">
+          <div className="md:col-span-2 bg-white rounded-3xl p-4 sm:p-6 border border-orange-100/50 shadow-card">
             <h3 className="text-slate-850 font-black text-sm mb-4">Employee Status Details</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
@@ -1449,7 +1452,7 @@ const AccountSettingsSection: React.FC<{
       </div>
 
       {/* ── Change Username ── */}
-      <div className="bg-white rounded-3xl p-6 border border-orange-100/50 shadow-card space-y-3">
+      <div className="bg-white rounded-3xl p-4 sm:p-6 border border-orange-100/50 shadow-card space-y-3">
         <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
           <span className="w-6 h-6 rounded-lg bg-orange-50 flex items-center justify-center text-[#f46617] border border-orange-100">
             <Camera className="w-3.5 h-3.5" />
@@ -1466,7 +1469,7 @@ const AccountSettingsSection: React.FC<{
         />
       </div>
 
-      <div className="bg-white rounded-3xl p-6 border border-orange-100/50 shadow-card space-y-4">
+      <div className="bg-white rounded-3xl p-4 sm:p-6 border border-orange-100/50 shadow-card space-y-4">
         <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
           <span className="w-6 h-6 rounded-lg bg-orange-50 flex items-center justify-center text-[#f46617] text-[10px] font-black border border-orange-100">@</span>
           Change Username
@@ -1525,7 +1528,7 @@ const AccountSettingsSection: React.FC<{
       </div>
 
       {/* ── Change Password ── */}
-      <div className="bg-white rounded-3xl p-6 border border-orange-100/50 shadow-card space-y-4">
+      <div className="bg-white rounded-3xl p-4 sm:p-6 border border-orange-100/50 shadow-card space-y-4">
         <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
           <span className="w-6 h-6 rounded-lg bg-orange-50 flex items-center justify-center text-[#f46617] border border-orange-100">
             <Shield className="w-3 h-3" />

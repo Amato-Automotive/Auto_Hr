@@ -85,4 +85,14 @@
   /* Horizontally scrollable pill/tab bars on small screens, without a visible scrollbar */
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
+
+  /* iOS-style frosted glass for the mobile tab bar and sheets */
+  .mobile-glass {
+    background-color: rgb(255 255 255 / 0.72);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .mobile-glass { background-color: rgb(255 255 255 / 0.97); }
+  }
 }

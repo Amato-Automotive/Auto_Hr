@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Sparkles, Trash2, Plus } from 'lucide-react';
 import type { HeroBanner, UserRole } from '../services/api';
+import { resolveAssetUrl } from '../utils/assetUrl';
 
 interface HeroBannerCarouselProps {
   banners: HeroBanner[];
@@ -21,12 +22,16 @@ function getVimeoEmbedUrl(url: string): string | null {
   return match ? `https://player.vimeo.com/video/${match[1]}?autoplay=1&muted=1&loop=1` : null;
 }
 
-const BannerMedia: React.FC<{ banner: HeroBanner }> = ({ banner }) => {
+const FALLBACK = <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-500" />;
+
+/** `failed` (image/video that couldn't load) renders the brand gradient instead of a grey broken box. */
+const BannerMedia: React.FC<{ banner: HeroBanner; failed: boolean; onError: () => void }> = ({ banner, failed, onError }) => {
+  if (failed) return FALLBACK;
   if (banner.mediaType === 'IMAGE' || banner.mediaType === 'GIF') {
-    return <img src={banner.mediaUrl} alt="" className="w-full h-full object-cover" />;
+    return <img src={resolveAssetUrl(banner.mediaUrl)} alt="" className="w-full h-full object-cover" onError={onError} />;
   }
   if (banner.mediaType === 'VIDEO_FILE') {
-    return <video src={banner.mediaUrl} className="w-full h-full object-cover" autoPlay muted loop playsInline />;
+    return <video src={resolveAssetUrl(banner.mediaUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline onError={onError} />;
   }
   if (banner.mediaType === 'VIDEO_EMBED') {
     const embedUrl = getYouTubeEmbedUrl(banner.mediaUrl) || getVimeoEmbedUrl(banner.mediaUrl);
@@ -42,11 +47,17 @@ const BannerMedia: React.FC<{ banner: HeroBanner }> = ({ banner }) => {
       );
     }
   }
-  return <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-500" />;
+  return FALLBACK;
 };
 
 export const HeroBannerCarousel: React.FC<HeroBannerCarouselProps> = ({ banners, role, onAdd, onDelete }) => {
-  const slides = useMemo(() => banners, [banners]);
+  const [failedIds, setFailedIds] = useState<Set<number>>(() => new Set());
+  // A banner whose media won't load and has no text to show is just an empty box: hide it from
+  // everyone except HR, who still needs to see it to remove it.
+  const slides = useMemo(
+    () => banners.filter(b => role === 'HR' || !failedIds.has(b.id) || b.title || b.subtitle),
+    [banners, failedIds, role]
+  );
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -80,9 +91,13 @@ export const HeroBannerCarousel: React.FC<HeroBannerCarouselProps> = ({ banners,
   const wrapperProps = current.linkUrl ? { href: current.linkUrl, target: '_blank', rel: 'noopener noreferrer' } : {};
 
   return (
-    <div className="relative w-full rounded-[32px] overflow-hidden shadow-card group h-[220px] sm:h-[380px] lg:h-[480px]">
+    <div className="relative w-full rounded-[32px] overflow-hidden shadow-card group h-[190px] sm:h-[380px] lg:h-[480px]">
       <Wrapper {...wrapperProps} className="absolute inset-0 block">
-        <BannerMedia banner={current} />
+        <BannerMedia
+          banner={current}
+          failed={failedIds.has(current.id)}
+          onError={() => setFailedIds(previous => new Set(previous).add(current.id))}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
       </Wrapper>
 
@@ -102,7 +117,7 @@ export const HeroBannerCarousel: React.FC<HeroBannerCarouselProps> = ({ banners,
       )}
 
       {role === 'HR' && (
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-2 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
           <button
             onClick={onAdd}
             className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/25"

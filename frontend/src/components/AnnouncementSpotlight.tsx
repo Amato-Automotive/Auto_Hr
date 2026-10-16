@@ -115,7 +115,7 @@ export const AnnouncementSpotlight: React.FC<AnnouncementSpotlightProps> = ({ an
         {/* Left: large media + detail — 70% */}
         <div
           onClick={() => onOpenAnnouncement(current)}
-          className="lg:w-[70%] relative rounded-[24px] overflow-hidden group h-[420px] sm:h-[520px] flex-shrink-0 cursor-pointer"
+          className="lg:w-[70%] relative rounded-[24px] overflow-hidden group h-[300px] sm:h-[520px] flex-shrink-0 cursor-pointer"
         >
           <div className="absolute inset-0 bg-slate-100">
             <MediaFrame media={primaryMedia} />

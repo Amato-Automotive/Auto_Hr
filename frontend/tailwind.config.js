@@ -54,6 +54,14 @@ export default {
           from: { opacity: '0', transform: 'translateY(16px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        'sheet-up': {
+          from: { transform: 'translateY(100%)' },
+          to: { transform: 'translateY(0)' },
+        },
+        'backdrop-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
       },
       animation: {
         'float': 'float 6s ease-in-out infinite',
@@ -63,6 +71,8 @@ export default {
         'fade-in': 'fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
         'scale-in': 'scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
         'fade-in-up': 'fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+        'sheet-up': 'sheet-up 0.35s cubic-bezier(0.32, 0.72, 0, 1)',
+        'backdrop-in': 'backdrop-in 0.25s ease-out',
       },
     },
   },

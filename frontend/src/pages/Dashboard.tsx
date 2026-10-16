@@ -7,7 +7,7 @@ import {
   LogOut,
   Home, FileText, Loader2,
   CheckCircle, XCircle, MessageSquare, X, Send, AlertTriangle,
-  UserPlus, Search, Filter, RefreshCw, RotateCcw, GraduationCap, Bell, Menu
+  UserPlus, Search, Filter, RefreshCw, RotateCcw, GraduationCap, Bell
 } from 'lucide-react';
 import {
   employeeApi,
@@ -35,6 +35,7 @@ import { AnnouncementDetailDialog } from '../components/AnnouncementDetailDialog
 import { HeroBannerCarousel } from '../components/HeroBannerCarousel';
 import { HeroBannerComposer } from '../components/HeroBannerComposer';
 import { NotificationBell } from '../components/NotificationBell';
+import { MobileTabBar } from '../components/MobileTabBar';
 import { BirthdayCelebration } from '../components/BirthdayCelebration';
 import { EmployeeDirectory } from '../components/EmployeeDirectory';
 import { formatLeaveDuration } from '../utils/leaveRules';
@@ -84,9 +85,6 @@ const Dashboard: React.FC = () => {
   // Holidays live inside Leaves, and E-Library inside Learning (one menu item each).
   const [leavesSubTab, setLeavesSubTab] = useState<LeavesSubTab>('leaves');
   const [learningStartTab, setLearningStartTab] = useState<LearningSubTab>('catalog');
-  // Phones/tablets: the sidebar becomes a slide-in drawer opened from the top bar.
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  useEffect(() => setMobileNavOpen(false), [activeTab]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -253,7 +251,6 @@ const Dashboard: React.FC = () => {
   /** Opens a page; also accepts the old standalone ids ('holidays', 'elibrary') still used by links. */
   const openTab = (tab: string) => {
     setFocusAttendanceEmployeeId(null);
-    setMobileNavOpen(false);
     if (tab === 'holidays' || tab === 'leaves') {
       setLeavesSubTab(tab === 'holidays' ? 'holidays' : 'leaves');
       setActiveTab('leaves');
@@ -276,19 +273,9 @@ const Dashboard: React.FC = () => {
       <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-brand-orange/10 blur-[120px] pointer-events-none animate-pulse-slow" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-blue-400/5 blur-[120px] pointer-events-none animate-pulse-slow" />
 
-      {/* Mobile top bar (below lg) */}
-      <header className="lg:hidden relative z-20 flex items-center gap-3 px-4 h-16 bg-white border-b border-orange-100/70 flex-shrink-0">
-        <button
-          type="button"
-          data-mobile-menu
-          onClick={() => setMobileNavOpen(true)}
-          className="p-2 -ml-2 rounded-xl text-slate-600 hover:bg-orange-50 transition-colors"
-          aria-label="Open menu"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
-        <img src={logoImg} alt="Autoform" className="h-7 w-auto select-none" />
-        <div className="ml-auto flex items-center gap-2">
+      {/* Mobile top bar (below lg) — frosted, like the tab bar; navigation lives at the bottom */}
+      <header className="mobile-glass lg:hidden relative z-20 grid grid-cols-[1fr_auto_1fr] items-center px-4 pt-[env(safe-area-inset-top)] min-h-[64px] border-b border-orange-100/60 flex-shrink-0">
+        <div className="justify-self-start">
           <NotificationBell
             notifications={notifications}
             unreadCount={unreadNotificationCount}
@@ -296,32 +283,21 @@ const Dashboard: React.FC = () => {
             onViewAll={() => setActiveTab('notifications')}
             onOpenNotification={handleOpenNotification}
           />
-          <button type="button" onClick={() => openTab('my-profile')} aria-label="My profile">
-            <EmployeeAvatar name={name} avatar={user?.employee?.avatar} gender={user?.employee?.gender} size="w-9 h-9" shape="rounded" />
-          </button>
         </div>
-      </header>
-
-      {/* Drawer backdrop (below lg) */}
-      {mobileNavOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm" onClick={() => setMobileNavOpen(false)} />
-      )}
-
-      {/* Sidebar — static column on lg+, slide-in drawer below */}
-      <aside
-        data-mobile-nav
-        className={`fixed inset-y-0 left-0 z-50 w-[82vw] max-w-[300px] rounded-r-[32px] transition-transform duration-300 ease-out ${
-          mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:static lg:z-10 lg:w-72 lg:max-w-none lg:translate-x-0 lg:rounded-[40px] lg:transition-none lg:animate-scale-in bg-white border border-orange-100/60 shadow-island flex flex-col h-full overflow-hidden flex-shrink-0`}
-      >
+        <img src={logoImg} alt="Autoform" className="h-10 w-auto select-none" draggable={false} />
         <button
           type="button"
-          onClick={() => setMobileNavOpen(false)}
-          className="lg:hidden absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 z-10"
-          aria-label="Close menu"
+          onClick={() => user?.employeeId && openTab('my-profile')}
+          disabled={!user?.employeeId}
+          aria-label="My profile"
+          className={`justify-self-end rounded-xl p-0.5 transition-all ${activeTab === 'my-profile' ? 'ring-2 ring-[#f46617]/70' : ''}`}
         >
-          <X className="w-5 h-5" />
+          <EmployeeAvatar name={name} avatar={user?.employee?.avatar} gender={user?.employee?.gender} size="w-9 h-9" shape="rounded" />
         </button>
+      </header>
+
+      {/* Sidebar — desktop (lg+) only; phones use the bottom tab bar */}
+      <aside className="hidden lg:flex lg:z-10 lg:w-72 lg:rounded-[40px] lg:animate-scale-in bg-white border border-orange-100/60 shadow-island flex-col h-full overflow-hidden flex-shrink-0">
         {/* Logo */}
         <div className="px-6 pt-5 pb-4 border-b border-orange-100/70 flex flex-col items-start lg:items-center">
           <img src={logoImg} alt="Autoform Logo" className="w-28 lg:w-36 h-auto mb-1 select-none" />
@@ -405,7 +381,8 @@ const Dashboard: React.FC = () => {
             onOpenNotification={handleOpenNotification}
           />
         </div>
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 lg:pt-2">
+        {/* Bottom padding on phones keeps content clear of the tab bar (60px + home indicator). */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 lg:pt-2 pb-[calc(76px+env(safe-area-inset-bottom))] sm:pb-[calc(84px+env(safe-area-inset-bottom))] lg:pb-8">
           {dataLoading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="w-8 h-8 text-[#f46617] animate-spin" />
@@ -506,6 +483,25 @@ const Dashboard: React.FC = () => {
         </div>
       </main>
 
+      <MobileTabBar
+        primary={[
+          { id: 'overview', label: 'Home', icon: Home },
+          { id: 'attendance', label: 'Attendance', icon: Clock },
+          { id: 'leaves', label: 'Leaves', icon: Calendar, badge: pendingLeaves },
+          { id: 'salary', label: 'Salary', icon: DollarSign },
+        ]}
+        more={[
+          { id: 'announcements', label: 'Announcements', icon: Megaphone, badge: unreadAnnouncementCount },
+          { id: 'documents', label: 'Documents', icon: FileText },
+          { id: 'learning', label: 'Learning', icon: GraduationCap },
+          ...(role !== 'EMPLOYEE' ? [{ id: 'employees', label: 'Employees', icon: Users }] : []),
+          { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadNotificationCount },
+        ]}
+        activeTab={activeTab}
+        onSelect={openTab}
+        onSignOut={logout}
+      />
+
       {user && <BirthdayCelebration currentEmployeeId={user.employeeId} viewerName={name} />}
 
       {profileDrawer.open && profileDrawer.employeeId && (
@@ -567,13 +563,16 @@ const OverviewPanel: React.FC<OverviewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      <HeroBannerCarousel
-        banners={heroBanners}
-        role={role}
-        onAdd={() => setShowHeroComposer(true)}
-        onDelete={handleDeleteHeroBanner}
-      />
+    <div className="space-y-4 sm:space-y-6">
+      {/* Decorative — skipped on phones so the greeting and today's numbers lead (managed from desktop) */}
+      <div className="hidden sm:block">
+        <HeroBannerCarousel
+          banners={heroBanners}
+          role={role}
+          onAdd={() => setShowHeroComposer(true)}
+          onDelete={handleDeleteHeroBanner}
+        />
+      </div>
 
       {/* Role-specific home: greeting, quick actions, KPIs and panels for this user's data */}
       <HomeDashboard role={role} name={name} onNavigate={onNavigate} />
