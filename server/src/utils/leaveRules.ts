@@ -22,3 +22,20 @@ export function isShortLeave(type: string | null | undefined): boolean {
 
 /** Prisma filter that excludes short leaves (for "who is away today"-style full-day counts). */
 export const NOT_SHORT_LEAVE = { type: { notIn: [...SHORT_LEAVE_TYPES] } };
+
+/** Inclusive list of YYYY-MM-DD dates from `startYmd` to `endYmd`. */
+export function datesInRange(startYmd: string, endYmd: string): string[] {
+    const dates: string[] = [];
+    const day = new Date(`${startYmd}T00:00:00.000Z`);
+    const stop = new Date(`${endYmd}T00:00:00.000Z`);
+    while (day <= stop) {
+        dates.push(day.toISOString().slice(0, 10));
+        day.setUTCDate(day.getUTCDate() + 1);
+    }
+    return dates;
+}
+
+/** The office works Monday–Saturday: Sundays and company holidays inside a leave aren't charged. */
+export function isChargeableLeaveDay(ymd: string, holidayDates: Set<string>): boolean {
+    return new Date(`${ymd}T00:00:00.000Z`).getUTCDay() !== 0 && !holidayDates.has(ymd);
+}

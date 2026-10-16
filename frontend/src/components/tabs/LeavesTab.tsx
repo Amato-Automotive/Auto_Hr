@@ -59,8 +59,14 @@ const getTodayKey = () => {
   return fmtKey(n.getFullYear(), n.getMonth(), n.getDate());
 };
 
-const dayCount = (s: string, e: string) =>
-  Math.floor((new Date(e + 'T00:00:00').getTime() - new Date(s + 'T00:00:00').getTime()) / 86400000) + 1;
+/** Leave days charged: Mon–Sat, skipping company holidays (the server applies the same rule). */
+const workingDayCount = (s: string, e: string, holidays: Record<string, string>) => {
+  let count = 0;
+  for (const d = new Date(s + 'T00:00:00Z'); d <= new Date(e + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1)) {
+    if (d.getUTCDay() !== 0 && !holidays[d.toISOString().slice(0, 10)]) count++;
+  }
+  return count;
+};
 
 const fmtDisplay = (d: string) =>
   new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -352,7 +358,7 @@ const LeavesTab: React.FC<LeavesTabProps> = ({ leaves, employee, isHR: _isHR, on
         type: leaveType,
         startDate: selStart,
         endDate: selEnd,
-        days: isShortLeave(leaveType) ? 0 : dayCount(selStart, selEnd),
+        days: isShortLeave(leaveType) ? 0 : workingDayCount(selStart, selEnd, holidayNames),
         reason: reason || undefined,
         approverIds: selectedApprovers.length > 0 ? selectedApprovers.join(',') : undefined,
       });
@@ -366,7 +372,7 @@ const LeavesTab: React.FC<LeavesTabProps> = ({ leaves, employee, isHR: _isHR, on
 
   // ── Computed for dialog ───────────────────────────────────
 
-  const selDays = selStart && selEnd ? dayCount(selStart, selEnd) : 0;
+  const selDays = selStart && selEnd ? workingDayCount(selStart, selEnd, holidayNames) : 0;
   const selTypeInfo = LEAVE_TYPES.find(t => t.value === leaveType);
   const shortSelected = isShortLeave(leaveType);
   // Short leaves already taken (pending/approved) in the month of the selected date
@@ -375,7 +381,7 @@ const LeavesTab: React.FC<LeavesTabProps> = ({ leaves, employee, isHR: _isHR, on
         l => isShortLeave(l.type) && l.status !== 'REJECTED' && l.startDate.slice(0, 7) === selStart.slice(0, 7),
       ).length
     : 0;
-  const shortLeaveBlocked = shortSelected && (selDays !== 1 || shortUsedThisMonth >= SHORT_LEAVES_PER_MONTH);
+  const shortLeaveBlocked = shortSelected && (selStart !== selEnd || selDays !== 1 || shortUsedThisMonth >= SHORT_LEAVES_PER_MONTH);
   const willExceed =
     selTypeInfo?.consumesQuota && paidBalance.remaining - selDays < 0;
 
@@ -848,8 +854,10 @@ const LeavesTab: React.FC<LeavesTabProps> = ({ leaves, employee, isHR: _isHR, on
                   <div className="flex items-center gap-2">
                     {shortLeaveBlocked ? <AlertTriangle className="w-4 h-4 text-red-600" /> : <Info className="w-4 h-4 text-teal-600" />}
                     <span className={`text-xs font-bold ${shortLeaveBlocked ? 'text-red-700' : 'text-teal-800'}`}>
-                      {selDays !== 1
+                      {selStart !== selEnd
                         ? 'Short leave is for a single day — select just one date'
+                        : selDays !== 1
+                          ? 'Short leave must be on a working day (not a Sunday or holiday)'
                         : shortUsedThisMonth >= SHORT_LEAVES_PER_MONTH
                           ? "You've already used this month's short leave"
                           : `Short leave · ${SHORT_LEAVE_HOURS} hours`}
