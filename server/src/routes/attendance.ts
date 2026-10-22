@@ -713,20 +713,42 @@ router.post(
             otTime: otSecs > 0 ? toHms(otSecs) : null,
         };
 
-        const attendance = await prisma.attendance.upsert({
-            where: {
-                employeeId_date: {
+        // The audit row also marks the day as corrected, so later biometric punches leave it alone.
+        const attendance = await prisma.$transaction(async (tx) => {
+            const existing = await tx.attendance.findUnique({
+                where: { employeeId_date: { employeeId, date: dateObj } },
+            });
+            const saved = await tx.attendance.upsert({
+                where: {
+                    employeeId_date: {
+                        employeeId,
+                        date: dateObj,
+                    },
+                },
+                update: derived,
+                create: {
                     employeeId,
                     date: dateObj,
+                    day: days[dateObj.getUTCDay()] || '',
+                    ...derived,
                 },
-            },
-            update: derived,
-            create: {
-                employeeId,
-                date: dateObj,
-                day: days[dateObj.getUTCDay()] || '',
-                ...derived,
-            },
+            });
+            await tx.attendanceCorrection.create({
+                data: {
+                    attendanceId: saved.id,
+                    employeeId,
+                    editedById: req.user!.userId,
+                    date: dateObj,
+                    previousStatus: existing?.status ?? null,
+                    newStatus: finalStatus,
+                    previousCheckIn: existing?.checkIn,
+                    newCheckIn: inTime,
+                    previousCheckOut: existing?.checkOut,
+                    newCheckOut: outTime,
+                    reason: 'Manual entry by HR',
+                },
+            });
+            return saved;
         });
 
         res.json({
