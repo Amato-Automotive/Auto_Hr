@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import LoginForm from '../components/LoginForm';
@@ -65,6 +66,28 @@ const DocumentManagerPanel = lazy(() => import('../components/DocumentManagerPan
 const ELibraryTab = lazy(() => import('../components/tabs/ELibraryTab').then((m) => ({ default: m.ELibraryTab })));
 const HolidaysPanel = lazy(() => import('../components/HolidaysPanel').then((m) => ({ default: m.HolidaysPanel })));
 
+// Each page's address. Pages are switched by URL, so the browser's Back button moves between pages
+// instead of leaving the site, and a refresh stays on the same page.
+const TAB_PATHS: Record<string, string> = {
+  overview: '/',
+  announcements: '/announcements',
+  attendance: '/attendance',
+  leaves: LEAVES_ENABLED ? '/leaves' : '/holidays',
+  salary: '/salary',
+  documents: '/documents',
+  learning: '/learning',
+  employees: '/employees',
+  'my-profile': '/my-profile',
+  notifications: '/notifications',
+};
+
+/** The page for an address; both /leaves and /holidays open the Leaves & Holidays page. Null if unknown. */
+const tabFromPath = (pathname: string): string | null => {
+  const path = pathname.replace(/\/+$/, '') || '/';
+  if (path === '/leaves' || path === '/holidays') return 'leaves';
+  return Object.keys(TAB_PATHS).find((tab) => TAB_PATHS[tab] === path) ?? null;
+};
+
 const ALL_ACCESS_ROLES: UserRole[] = ['HR', 'LEADERSHIP'];
 const MANAGEMENT_ROLES: UserRole[] = ['HR', 'LEADERSHIP', 'MANAGER'];
 
@@ -82,7 +105,23 @@ const getRoleBadgeClasses = (role: UserRole) => (
 
 const Dashboard: React.FC = () => {
   const { user, isLoggedIn, isLoading, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeTab = tabFromPath(location.pathname) ?? 'overview';
+  // Opening a page adds a history entry; re-opening the current page adds nothing.
+  const setActiveTab = (tab: string) => {
+    const path = TAB_PATHS[tab] ?? '/';
+    if (path !== location.pathname) navigate(path);
+  };
+  const signOut = () => {
+    logout();
+    navigate('/', { replace: true });
+  };
+
+  // An address that isn't a page (old link, typo) goes Home without leaving a Back entry.
+  useEffect(() => {
+    if (tabFromPath(location.pathname) === null) navigate('/', { replace: true });
+  }, [location.pathname, navigate]);
   // Holidays live inside Leaves, and E-Library inside Learning (one menu item each).
   const [leavesSubTab, setLeavesSubTab] = useState<LeavesSubTab>(LEAVES_ENABLED ? 'leaves' : 'holidays');
   const [learningStartTab, setLearningStartTab] = useState<LearningSubTab>('catalog');
@@ -363,7 +402,7 @@ const Dashboard: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={logout}
+            onClick={signOut}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-slate-600 bg-white border border-orange-100 rounded-2xl hover:text-[#f46617] hover:border-[#f46617]/40 hover:bg-orange-50/50 transition-all"
           >
             <LogOut className="w-4 h-4" />
@@ -511,7 +550,7 @@ const Dashboard: React.FC = () => {
         ]}
         activeTab={activeTab}
         onSelect={openTab}
-        onSignOut={logout}
+        onSignOut={signOut}
       />
 
       {user && <BirthdayCelebration currentEmployeeId={user.employeeId} viewerName={name} />}

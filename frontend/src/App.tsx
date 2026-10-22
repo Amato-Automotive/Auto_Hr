@@ -12,6 +12,8 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/profile/:id" element={<Profile />} />
+          {/* Each Dashboard page has its own address (/attendance, /holidays, ...) so Back moves between pages. */}
+          <Route path="/:tab" element={<Dashboard />} />
           <Route 
             path="/admin" 
             element={
