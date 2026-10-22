@@ -341,8 +341,7 @@ const Dashboard: React.FC = () => {
       <aside className="hidden lg:flex lg:z-10 lg:w-72 lg:rounded-[40px] lg:animate-scale-in bg-white border border-orange-100/60 shadow-island flex-col h-full overflow-hidden flex-shrink-0">
         {/* Logo */}
         <div className="px-6 pt-5 pb-4 border-b border-orange-100/70 flex flex-col items-start lg:items-center">
-          <img src={logoImg} alt="Autoform Logo" className="w-28 lg:w-36 h-auto mb-1 select-none" />
-          <h1 className="text-lg lg:text-xl font-script text-slate-800 leading-none">Autoform Connect</h1>
+          <img src={logoImg} alt="Autoform India" className="w-40 lg:w-52 h-auto select-none" />
         </div>
 
         {/* Navigation */}

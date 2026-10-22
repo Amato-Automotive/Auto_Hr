@@ -82,13 +82,16 @@ export const DeskIllustration: React.FC = () => (
       <path d="M326 196 l10 14 l10 -14" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity=".8" />
 
       {/* Person — head (gently nods while reading) */}
+      {/* Side view, facing the monitor: neck, face, nose, ear, then hair over the top and back. */}
       <g className="desk-head">
-        <rect x="329" y="178" width="12" height="14" rx="4" fill="#e8a87c" />
-        <circle cx="336" cy="160" r="22" fill="#f2b98d" />
-        <path d="M314 160 a22 22 0 0 1 44 -4 q-6 -16 -24 -16 q-20 0 -20 20 z" fill="#1f2937" />
-        <path d="M356 154 q6 6 2 20" stroke="#1f2937" strokeWidth="6" strokeLinecap="round" fill="none" />
-        <circle cx="322" cy="162" r="2.2" fill="#1f2937" />
-        <path d="M318 172 q4 3 8 0" stroke="#b45309" strokeWidth="2" strokeLinecap="round" fill="none" />
+        <rect x="331" y="174" width="12" height="18" rx="5" fill="#e8a87c" />
+        <circle cx="338" cy="158" r="20" fill="#f2b98d" />
+        <path d="M319 155 q-6 5 -1 9" fill="#f2b98d" stroke="#e8a87c" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M318 154 c0 -14 10 -22 22 -22 c13 0 21 9 21 22 c0 8 -3 15 -8 20 l-3 -14 c-8 -1 -16 -5 -22 -11 c-3 3 -6 5 -10 5 z" fill="#1f2937" />
+        <ellipse cx="346" cy="161" rx="3.5" ry="5" fill="#e8a87c" />
+        <path d="M322 152 h6" stroke="#1f2937" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="325" cy="158" r="2" fill="#1f2937" />
+        <path d="M322 169 q3 2 7 0" stroke="#b45309" strokeWidth="2" strokeLinecap="round" fill="none" />
       </g>
 
       {/* Desk */}
@@ -118,8 +121,9 @@ export const DeskIllustration: React.FC = () => (
 
       {/* Keyboard + typing hands */}
       <rect x="226" y="254" width="74" height="8" rx="3" fill="#cbd5e1" />
-      <path d="M318 214 q-30 28 -54 38" stroke="#f46617" strokeWidth="14" strokeLinecap="round" fill="none" />
-      <path d="M330 220 q-22 26 -44 34" stroke="#ea580c" strokeWidth="14" strokeLinecap="round" fill="none" />
+      {/* Arms bent at the elbow: far arm (darker) first, near arm on top. */}
+      <path d="M342 208 L330 240 L290 252" stroke="#ea580c" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M330 206 L316 238 L268 250" stroke="#f46617" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" fill="none" />
       <ellipse className="desk-hand-l" cx="260" cy="252" rx="9" ry="6" fill="#f2b98d" />
       <ellipse className="desk-hand-r" cx="283" cy="254" rx="9" ry="6" fill="#e8a87c" />
 
