@@ -20,6 +20,7 @@ import PerformanceTab from '../components/tabs/PerformanceTab';
 import LeavesTab from '../components/tabs/LeavesTab';
 import { AttendanceTab } from '../components/tabs/AttendanceTab';
 import { EmployeeDocumentsTab } from '../components/tabs/EmployeeDocumentsTab';
+import { AssetsTab } from '../components/tabs/AssetsTab';
 import SalaryTab from '../components/tabs/SalaryTab';
 import { EmployeeAvatar } from '../components/EmployeeAvatar';
 import { AvatarUploadPicker } from '../components/AvatarUploadPicker';
@@ -68,7 +69,7 @@ const ScoreDisplay: React.FC<{ score: number | null }> = ({ score }) => {
 
 // ─── Profile Page ────────────────────────────────────────────
 
-type Tab = 'about' | 'performance' | 'leaves' | 'attendance' | 'documents' | 'salary' | 'account';
+type Tab = 'about' | 'performance' | 'leaves' | 'attendance' | 'assets' | 'documents' | 'salary' | 'account';
 
 export const ProfileView: React.FC<{
   employeeId: number;
@@ -191,6 +192,8 @@ export const ProfileView: React.FC<{
       ...(LEAVES_ENABLED ? [{ id: 'leaves' as Tab, label: 'Leaves' }] : []),
       { id: 'attendance' as Tab, label: 'Attendance' },
     ]),
+    // Same audience as documents, plus the employee themself (no sidebar page duplicates it).
+    ...(isOwnProfile || canViewEmployeeDocuments ? [{ id: 'assets' as Tab, label: 'Assets' }] : []),
     ...(canViewEmployeeDocuments ? [{ id: 'documents' as Tab, label: 'Documents' }] : []),
     ...(isOwnProfile ? [{ id: 'account' as Tab, label: 'Account Settings' }] : []),
   ];
@@ -359,6 +362,9 @@ export const ProfileView: React.FC<{
         )}
         {activeTab === 'leaves' && <LeavesTab leaves={leaves} employee={employee} isHR={isHR} onRefresh={reloadAfterChange} theme="light" />}
         {activeTab === 'attendance' && <AttendanceTab employeeId={employeeId} isHR={isHR} theme="light" />}
+        {activeTab === 'assets' && (isOwnProfile || canViewEmployeeDocuments) && (
+          <AssetsTab employeeId={employeeId} employeeName={employee.name} isHR={isHR} isOwnProfile={isOwnProfile} />
+        )}
         {activeTab === 'documents' && canViewEmployeeDocuments && (
           <EmployeeDocumentsTab employeeId={employeeId} employeeName={employee.name} />
         )}
@@ -1646,7 +1652,7 @@ const Profile: React.FC = () => {
 
   const initialTab = (() => {
     const param = new URLSearchParams(location.search).get('tab');
-    if (param === 'leaves' || param === 'performance' || param === 'attendance' || param === 'documents' || param === 'salary') return param as Tab;
+    if (param === 'leaves' || param === 'performance' || param === 'attendance' || param === 'assets' || param === 'documents' || param === 'salary') return param as Tab;
     return 'about' as Tab;
   })();
 

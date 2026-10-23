@@ -381,6 +381,31 @@ export const documentApi = {
         request<{ documents: EmployeeDocumentDownloadPayload[] }>(`/documents/employees/${employeeId}/download-all`),
 };
 
+export const assetApi = {
+    listForEmployee: (employeeId: number) =>
+        request<{ assets: EmployeeAsset[] }>(`/assets/employees/${employeeId}`),
+
+    create: (employeeId: number, data: EmployeeAssetInput) =>
+        request<{ asset: EmployeeAsset }>(`/assets/employees/${employeeId}`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+
+    update: (id: number, data: EmployeeAssetInput) =>
+        request<{ asset: EmployeeAsset }>(`/assets/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
+
+    markReturned: (id: number, data: { returnedOn: string; notes?: string }) =>
+        request<{ asset: EmployeeAsset }>(`/assets/${id}/return`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+
+    remove: (id: number) => request(`/assets/${id}`, { method: 'DELETE' }),
+};
+
 export const libraryApi = {
     list: () => request<{ documents: LibraryDocument[] }>('/library/documents'),
 
@@ -1004,6 +1029,30 @@ export interface EmployeeDocument {
     createdAt: string;
     updatedAt: string;
     _count?: { downloads: number };
+}
+
+export type AssetType = 'LAPTOP' | 'DESKTOP' | 'PHONE' | 'TABLET' | 'OTHER';
+
+export interface EmployeeAsset {
+    id: number;
+    employeeId: number;
+    type: AssetType;
+    name: string;
+    serialNumber: string | null;
+    assignedOn: string;
+    returnedOn: string | null;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+    assignedBy?: { username: string; employee: { name: string } | null };
+}
+
+export interface EmployeeAssetInput {
+    type: AssetType;
+    name: string;
+    serialNumber?: string;
+    assignedOn: string;
+    notes?: string;
 }
 
 export interface EmployeeDocumentWithEmployee extends EmployeeDocument {

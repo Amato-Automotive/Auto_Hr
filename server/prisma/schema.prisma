@@ -39,6 +39,7 @@ model User {
   documentDownloads   EmployeeDocumentDownload[]
   libraryDocumentsUploaded LibraryDocument[]
   libraryDocumentReads     LibraryDocumentRead[]
+  assetsAssigned      EmployeeAsset[]
 
   @@map("users")
 }
@@ -93,6 +94,7 @@ model Employee {
   iltRegistrations ILTRegistration[]
   badges           EmployeeBadge[]
   documents        EmployeeDocument[]
+  assets           EmployeeAsset[]
   biometricPunches BiometricPunch[]
 
   @@index([managerId], map: "employees_manager_id_fkey")
@@ -269,6 +271,29 @@ model EmployeeDocument {
   @@index([employeeId, createdAt])
   @@index([uploadedById], map: "employee_documents_uploaded_by_id_fkey")
   @@map("employee_documents")
+}
+
+/// Company equipment (laptop, phone, tablet, ...) issued to an employee. HR records it; a returned
+/// asset keeps its row with returnedOn set, so the profile shows a history.
+model EmployeeAsset {
+  id           Int       @id @default(autoincrement())
+  employeeId   Int       @map("employee_id")
+  type         String    @db.VarChar(30)
+  name         String    @db.VarChar(150)
+  serialNumber String?   @map("serial_number") @db.VarChar(100)
+  assignedOn   DateTime  @map("assigned_on") @db.Date
+  returnedOn   DateTime? @map("returned_on") @db.Date
+  notes        String?   @db.Text
+  assignedById Int       @map("assigned_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  assignedBy   User      @relation(fields: [assignedById], references: [id])
+
+  @@index([employeeId, returnedOn])
+  @@index([serialNumber])
+  @@index([assignedById])
+  @@map("employee_assets")
 }
 
 model EmployeeDocumentDownload {

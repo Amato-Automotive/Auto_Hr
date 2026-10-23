@@ -29,7 +29,8 @@ export type NotificationType =
     | 'LIBRARY_DOCUMENT_ADDED'
     | 'CERTIFICATE_ISSUED'
     | 'COURSE_CONTENT_UPDATED'
-    | 'PAYROLL_DETAILS_CHANGED';
+    | 'PAYROLL_DETAILS_CHANGED'
+    | 'ASSET_ASSIGNED';
 
 /** Learning notification types that count toward a learner's once-a-day nudge cap. */
 const LEARNING_NUDGE_TYPES: NotificationType[] = ['COURSE_DUE_REMINDER', 'COURSE_OVERDUE', 'COURSE_NUDGE'];

@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ProfileView } from '../pages/Profile';
 
-type Tab = 'about' | 'performance' | 'leaves' | 'attendance' | 'documents';
+type Tab = 'about' | 'performance' | 'leaves' | 'attendance' | 'assets' | 'documents';
 
 export const ProfileDrawer: React.FC<{
   employeeId: number;
@@ -27,6 +27,7 @@ export const ProfileDrawer: React.FC<{
     if (tab === 'leaves') return 'Leaves';
     if (tab === 'performance') return 'Performance';
     if (tab === 'attendance') return 'Attendance';
+    if (tab === 'assets') return 'Assets';
     if (tab === 'documents') return 'Documents';
     return 'Profile';
   }, [tab]);

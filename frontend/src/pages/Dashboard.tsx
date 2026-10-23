@@ -134,7 +134,7 @@ const Dashboard: React.FC = () => {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [focusAttendanceEmployeeId, setFocusAttendanceEmployeeId] = useState<number | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
-  const [profileDrawer, setProfileDrawer] = useState<{ open: boolean; employeeId: number | null; tab: 'about' | 'performance' | 'leaves' | 'attendance' }>({
+  const [profileDrawer, setProfileDrawer] = useState<{ open: boolean; employeeId: number | null; tab: 'about' | 'performance' | 'leaves' | 'attendance' | 'assets' }>({
     open: false,
     employeeId: null,
     tab: 'about',
@@ -263,6 +263,13 @@ const Dashboard: React.FC = () => {
         break;
       case 'LIBRARY_DOCUMENT_ADDED':
         openTab('elibrary');
+        break;
+      case 'ASSET_ASSIGNED':
+        if (notification.employeeId) {
+          setProfileDrawer({ open: true, employeeId: notification.employeeId, tab: 'assets' });
+        } else {
+          setActiveTab('notifications');
+        }
         break;
       case 'PAYROLL_DETAILS_CHANGED':
         if (notification.employeeId) {
