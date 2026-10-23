@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
 import prisma from '../config/db.js';
-import { masterEmployees } from '../data/employeeMaster.js';
 import {
     authenticate,
     authorize,
@@ -120,6 +119,8 @@ const querySchema = z.object({
     managerId: z.string().optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(1000).default(50),
+    /** `inactive` lists deactivated employees (HR only), so they can be found and reactivated. */
+    status: z.enum(['active', 'inactive']).default('active'),
 });
 
 // ─── Helper: build WHERE clause based on data scope ──────────
@@ -196,7 +197,11 @@ router.get(
     '/',
     validate(querySchema, 'query'),
     asyncHandler(async (req, res) => {
-        const { search, department, managerId, page, limit } = req.query as unknown as z.infer<typeof querySchema>;
+        const { search, department, managerId, page, limit, status } = req.query as unknown as z.infer<typeof querySchema>;
+        if (status === 'inactive' && req.user!.role !== 'HR') {
+            throw new ForbiddenError('Only HR can view deactivated employees');
+        }
+        const isActive = status === 'active';
 
         const scopeWhere = await buildWhereClause(req);
         const skip = (page - 1) * limit;
@@ -222,7 +227,7 @@ router.get(
                 where: {
                     ...scopeWhere,
                     ...filters,
-                    isActive: true,
+                    isActive,
                 },
                 select: {
                     id: true,
@@ -254,7 +259,7 @@ router.get(
                 where: {
                     ...scopeWhere,
                     ...filters,
-                    isActive: true,
+                    isActive,
                 },
             }),
         ]);
@@ -376,45 +381,6 @@ router.get(
     })
 );
 
-// ─── POST /api/employees/master/sync ────────────────────────────────
-// Sync baseline biometric master data into the employee table
-
-router.post(
-    '/master/sync',
-    authorize('HR'),
-    asyncHandler(async (_req, res) => {
-        // One read + one bulk insert instead of two queries per master record.
-        const existing = await prisma.employee.findMany({
-            where: { biometricId: { in: masterEmployees.map((m) => m.biometricId) } },
-            select: { biometricId: true },
-        });
-        const existingIds = new Set(existing.map((e) => e.biometricId));
-        const toCreate = masterEmployees.filter((m) => !existingIds.has(m.biometricId));
-
-        const { count: created } = toCreate.length > 0
-            ? await prisma.employee.createMany({
-                data: toCreate.map((m) => ({
-                    biometricId: m.biometricId,
-                    name: m.name,
-                    department: m.department,
-                })),
-                skipDuplicates: true,
-            })
-            : { count: 0 };
-        const skipped = masterEmployees.length - created;
-
-        res.json({
-            success: true,
-            message: 'Master employee data synced successfully',
-            data: {
-                total: masterEmployees.length,
-                created,
-                skipped,
-            },
-        });
-    })
-);
-
 // ─── GET /api/employees/birthdays/today ──────────────────────
 // Everyone (any role) sees who has a birthday today, company-wide, for the celebration
 // popup. "Today" is the India (IST) calendar day. Only day/month are exposed — never the
@@ -490,7 +456,8 @@ router.get(
             },
         });
 
-        if (!employee || !employee.isActive) {
+        // HR can still open a deactivated profile (to reactivate or delete it); nobody else sees it.
+        if (!employee || (!employee.isActive && req.user!.role !== 'HR')) {
             throw new NotFoundError('Employee not found');
         }
 
@@ -907,6 +874,32 @@ router.delete(
         res.json({
             success: true,
             message: 'Employee deactivated successfully',
+        });
+    })
+);
+
+// ─── POST /api/employees/:id/reactivate ──────────────────────
+// Undo a deactivation (HR only): the profile shows up again and the linked login works again.
+
+router.post(
+    '/:id/reactivate',
+    authorize('HR'),
+    asyncHandler(async (req, res) => {
+        const id = parseInt(req.params['id'] as string, 10);
+        if (isNaN(id)) throw new BadRequestError('Invalid employee ID');
+
+        const existing = await prisma.employee.findUnique({ where: { id }, select: { name: true, isActive: true } });
+        if (!existing) throw new NotFoundError('Employee not found');
+        if (existing.isActive) throw new BadRequestError(`${existing.name} is already active`);
+
+        await prisma.$transaction([
+            prisma.employee.update({ where: { id }, data: { isActive: true } }),
+            prisma.user.updateMany({ where: { employeeId: id }, data: { isActive: true } }),
+        ]);
+
+        res.json({
+            success: true,
+            message: `${existing.name} has been reactivated`,
         });
     })
 );

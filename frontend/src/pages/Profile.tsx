@@ -403,6 +403,8 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
   const [editingOwnDetails, setEditingOwnDetails] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
+  const isDeactivated = employee.isActive === false;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -670,6 +672,18 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
     }
   };
 
+  const handleReactivate = async () => {
+    setReactivating(true);
+    try {
+      await employeeApi.reactivate(employee.id);
+      await onRefresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to reactivate employee');
+    } finally {
+      setReactivating(false);
+    }
+  };
+
   const handleDeletePermanently = async () => {
     setConfirmDelete(false);
     setDeleting(true);
@@ -712,6 +726,24 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
           </button>
         </div>
       )}
+      {isHR && isDeactivated && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-red-100 bg-red-50 p-4">
+          <div>
+            <p className="text-sm font-black text-red-700">This profile is deactivated</p>
+            <p className="text-xs font-semibold text-red-600/80 mt-0.5">
+              {employee.name} can't sign in and is hidden from the directory, attendance and other lists.
+            </p>
+          </div>
+          <button
+            onClick={() => void handleReactivate()}
+            disabled={reactivating}
+            className="btn-orange px-4 py-2 text-xs font-bold rounded-2xl flex-shrink-0"
+          >
+            {reactivating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            Reactivate
+          </button>
+        </div>
+      )}
       {isHR && !editing && (
         <div className="flex flex-wrap justify-end gap-2 sm:gap-3 mb-3">
           {!isOwnProfile && (
@@ -724,7 +756,7 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
               Delete Permanently
             </button>
           )}
-          {!isOwnProfile && <button
+          {!isOwnProfile && !isDeactivated && <button
             onClick={handleDeactivate}
             disabled={deactivating}
             className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-sm shadow-red-500/10"

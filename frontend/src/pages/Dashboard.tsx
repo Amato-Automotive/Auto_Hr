@@ -8,7 +8,7 @@ import {
   LogOut,
   Home, FileText, Loader2,
   CheckCircle, XCircle, MessageSquare, X, Send, AlertTriangle,
-  UserPlus, Search, Filter, RefreshCw, RotateCcw, GraduationCap, Bell, Palmtree
+  UserPlus, UserX, Search, Filter, RotateCcw, GraduationCap, Bell, Palmtree
 } from 'lucide-react';
 import { LEAVES_ENABLED, LEAVES_LAUNCH_LABEL } from '../utils/features';
 import {
@@ -949,7 +949,21 @@ interface EmployeesPanelProps {
 }
 
 const EmployeesPanel: React.FC<EmployeesPanelProps> = ({ employees, allEmployees = employees, role, onRefresh, onOpenProfile }) => {
-  const [syncingMasterData, setSyncingMasterData] = useState(false);
+  // HR can switch the directory to deactivated employees, to find and reactivate them.
+  const [showDeactivated, setShowDeactivated] = useState(false);
+  const [deactivated, setDeactivated] = useState<Employee[]>([]);
+  const [deactivatedError, setDeactivatedError] = useState('');
+
+  // Reloads whenever the dashboard refetches employees, e.g. after a (re)activation.
+  useEffect(() => {
+    if (role !== 'HR') return;
+    employeeApi.list({ status: 'inactive', limit: '1000' })
+      .then(res => {
+        setDeactivated(res.data?.employees ?? []);
+        setDeactivatedError('');
+      })
+      .catch(err => setDeactivatedError(err instanceof Error ? err.message : 'Failed to load deactivated employees'));
+  }, [role, employees]);
   
   // Add employee modal states
   const [showModal, setShowModal] = useState(false);
@@ -1129,36 +1143,29 @@ const EmployeesPanel: React.FC<EmployeesPanelProps> = ({ employees, allEmployees
     }
   };
 
-  const handleSyncMasterData = async () => {
-    setSyncingMasterData(true);
-    setError('');
-    try {
-      const res = await employeeApi.syncMasterData();
-      if (res.success) {
-        onRefresh();
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to sync master employee data');
-    } finally {
-      setSyncingMasterData(false);
-    }
-  };
-
   return (
     <div>
+      {showDeactivated && (
+        <div className="mb-4 flex items-start gap-2 rounded-2xl border border-red-100 bg-red-50 p-3 text-xs font-semibold text-red-700">
+          <UserX className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <p>
+            {deactivatedError || "Showing deactivated employees. They can't sign in and are hidden everywhere else. Open one to reactivate it."}
+          </p>
+        </div>
+      )}
       <EmployeeDirectory
-        employees={employees}
+        employees={showDeactivated ? deactivated : employees}
         onOpenProfile={onOpenProfile}
         showAdminInsights={role === 'HR'}
         actions={role === 'HR' ? (
           <>
             <button
-              onClick={handleSyncMasterData}
-              disabled={syncingMasterData}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-xs font-bold rounded-2xl transition-all"
+              onClick={() => setShowDeactivated(value => !value)}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-2xl transition-all"
             >
-              {syncingMasterData ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              Sync Master Data
+              {showDeactivated
+                ? <><Users className="w-4 h-4" /> Active employees</>
+                : <><UserX className="w-4 h-4" /> Deactivated ({deactivated.length})</>}
             </button>
             <button
               onClick={() => {

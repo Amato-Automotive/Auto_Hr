@@ -190,6 +190,9 @@ export const employeeApi = {
             body: JSON.stringify({ enabled }),
         }),
 
+    reactivate: (id: number) =>
+        request(`/employees/${id}/reactivate`, { method: 'POST' }),
+
     deletePermanently: (id: number) =>
         request<{ userAccount: 'none' | 'deleted' | 'deactivated' }>(`/employees/${id}/permanent`, { method: 'DELETE' }),
 
@@ -198,11 +201,6 @@ export const employeeApi = {
 
     managersList: () =>
         request<{ managers: ManagerOption[] }>('/employees/managers/list'),
-
-    syncMasterData: () =>
-        request<{ total: number; created: number; skipped: number }>('/employees/master/sync', {
-            method: 'POST',
-        }),
 
     approversList: () =>
         request<{ approvers: { userId: number; employeeId: number; name: string; role: UserRole; position: string | null; department: string | null }[] }>('/employees/approvers/list'),
@@ -888,6 +886,8 @@ export interface Employee {
     bankIfscCode: string | null;
     bankBranch: string | null;
     manager?: { id: number; name: string } | null;
+    /** False once HR deactivates the employee (only HR ever receives deactivated records). */
+    isActive?: boolean;
     /** Login account summary — present in the employee list response. */
     user?: { role: UserRole; isActive?: boolean } | null;
 }
