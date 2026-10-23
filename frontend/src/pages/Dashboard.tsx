@@ -1508,7 +1508,11 @@ const EmployeesPanel: React.FC<EmployeesPanelProps> = ({ employees, allEmployees
                   <input
                     type="checkbox"
                     checked={createUser}
-                    onChange={e => setCreateUser(e.target.checked)}
+                    onChange={e => {
+                      setCreateUser(e.target.checked);
+                      // Suggest the first name, the username convention.
+                      if (e.target.checked && !username) setUsername(name.trim().split(/\s+/)[0] ?? '');
+                    }}
                     disabled={submitting}
                     className="w-4 h-4 rounded border-orange-200 text-[#f46617] focus:ring-brand-orange/30 accent-[#f46617] cursor-pointer bg-white"
                   />

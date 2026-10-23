@@ -456,7 +456,9 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
     systemRole: employee.user?.role || 'EMPLOYEE' as UserRole,
   });
 
-  const startEditing = async () => {
+  /** `createLogin` opens the form with "Create login" ticked and scrolled into view. */
+  const startEditing = async (options?: { createLogin?: boolean }) => {
+    const createLogin = Boolean(options?.createLogin && !employee.user);
     setEditing(true);
     setSaveError(null);
     setAvatarStatus(null);
@@ -492,11 +494,14 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
       dateOfBirth: employee.dateOfBirth ? employee.dateOfBirth.split('T')[0] : '',
       managerId: employee.managerId ?? null as number | null,
       managerIds: employee.managers?.map(m => m.manager.id) ?? (employee.managerId ? [employee.managerId] : []) as number[],
-      createUser: false,
-      username: employee.user?.username || '',
+      createUser: createLogin,
+      username: employee.user?.username || (createLogin ? employee.name.trim().split(/\s+/)[0] ?? '' : ''),
       password: '',
       systemRole: employee.user?.role || 'EMPLOYEE' as UserRole,
     });
+    if (createLogin) {
+      window.setTimeout(() => document.getElementById('login-account-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+    }
     try {
       const mgrRes = await employeeApi.managersList();
 
@@ -607,8 +612,15 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
           payload.role = form.systemRole;
         }
       } else {
-        const roleChanged = form.systemRole !== employee.user.role;
-        if (roleChanged) {
+        const username = form.username.trim();
+        if (!username) throw new Error('Username cannot be empty');
+        if (form.password && form.password.length < 6) throw new Error('New password must be at least 6 characters');
+        if (username !== employee.user.username || form.password) {
+          payload.createUser = true;
+          payload.username = username;
+          if (form.password) payload.password = form.password;
+        }
+        if (form.systemRole !== employee.user.role) {
           payload.role = form.systemRole;
         }
       }
@@ -744,6 +756,22 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
           </button>
         </div>
       )}
+      {isHR && !isDeactivated && !employee.user && !editing && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div>
+            <p className="text-sm font-black text-amber-800">No login yet</p>
+            <p className="text-xs font-semibold text-amber-700/80 mt-0.5">
+              {employee.name} can't sign in to the portal until you create a username and password.
+            </p>
+          </div>
+          <button
+            onClick={() => void startEditing({ createLogin: true })}
+            className="btn-orange px-4 py-2 text-xs font-bold rounded-2xl flex-shrink-0"
+          >
+            Create login
+          </button>
+        </div>
+      )}
       {isHR && !editing && (
         <div className="flex flex-wrap justify-end gap-2 sm:gap-3 mb-3">
           {!isOwnProfile && (
@@ -765,7 +793,7 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
             Deactivate Profile
           </button>}
           <button
-            onClick={startEditing}
+            onClick={() => void startEditing()}
             className="btn-orange px-4 py-2 text-xs font-bold rounded-2xl"
           >
             Edit Profile
@@ -1013,7 +1041,7 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
 
             {/* User Account Details Section */}
             {!employee.user ? (
-              <div className="col-span-1 sm:col-span-2 pt-2 space-y-4">
+              <div id="login-account-section" className="col-span-1 sm:col-span-2 pt-2 space-y-4">
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -1081,18 +1109,38 @@ const AboutSection: React.FC<{ employee: EmployeeDetail; isHR: boolean; isOwnPro
                 )}
               </div>
             ) : (
-              <div className="col-span-1 sm:col-span-2 pt-2 space-y-4">
+              <div id="login-account-section" className="col-span-1 sm:col-span-2 pt-2 space-y-4">
                 <div className="p-4 rounded-2xl border border-orange-100 bg-orange-50/20 space-y-4">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Linked User Account Settings</h4>
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Login Account</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
-                        Username (linked)
+                        Username
                       </label>
-                      <div className="w-full text-slate-600 bg-slate-50 text-sm rounded-xl px-3.5 py-2.5 border border-slate-100">
-                        {employee.user.username}
-                      </div>
-                      <p className="text-[10px] text-slate-400 mt-1.5">The employee manages credentials from Account Settings.</p>
+                      <input
+                        type="text"
+                        value={form.username}
+                        onChange={e => setForm(p => ({ ...p, username: e.target.value }))}
+                        disabled={saving}
+                        maxLength={50}
+                        autoComplete="off"
+                        className="w-full text-slate-800 bg-white text-sm rounded-xl px-3.5 py-2.5 border border-orange-100 focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
+                        New Password
+                      </label>
+                      <input
+                        type="password"
+                        value={form.password}
+                        onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                        disabled={saving}
+                        autoComplete="new-password"
+                        placeholder="Leave blank to keep current"
+                        className="w-full text-slate-800 bg-white text-sm rounded-xl px-3.5 py-2.5 border border-orange-100 focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange transition-all placeholder-slate-400"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1.5">Set one if the employee forgot theirs, and tell them.</p>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">

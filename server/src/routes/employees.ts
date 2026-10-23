@@ -641,18 +641,20 @@ router.put(
             });
 
             if (existingEmployeeUser) {
-                if (existingEmployeeUser.username !== username || password) {
-                    throw new ForbiddenError('Only the account owner can change username or password');
+                // HR may rename the login or set a new password (e.g. the employee forgot it).
+                if (username !== existingEmployeeUser.username) {
+                    const taken = await prisma.user.findUnique({ where: { username } });
+                    if (taken && taken.id !== existingEmployeeUser.id) throw new ConflictError('Username is already taken');
                 }
-
-                const dataToUpdate = {
-                    role: role || undefined,
-                    isActive: true,
-                };
 
                 await prisma.user.update({
                     where: { id: existingEmployeeUser.id },
-                    data: dataToUpdate,
+                    data: {
+                        username,
+                        role: role || undefined,
+                        isActive: true,
+                        ...(password ? { passwordHash: await hashPassword(password) } : {}),
+                    },
                 });
             } else {
                 if (!password) {
