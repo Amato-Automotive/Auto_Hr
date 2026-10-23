@@ -1092,7 +1092,6 @@ export interface AttendanceSummary {
     lateDays: number;
     overtimeDays: number;
     graceLateDays: number;
-    avgLateMinutes: number;
 }
 
 export interface SalaryBreakdown {

@@ -618,13 +618,12 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user, employee
 
           {/* Monthly stats breakdown */}
           {summary && (
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3 mb-4 sm:mb-6">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 mb-4 sm:mb-6">
               {[
                 { label: 'Present', value: summary.present, color: 'text-emerald-600 bg-emerald-50 border border-emerald-100/30' },
                 { label: 'Absent', value: summary.absent, color: 'text-red-650 bg-red-50 border border-red-100/30' },
                 { label: 'Late Days', value: summary.lateDays, color: 'text-orange-600 bg-orange-50 border border-orange-100/30' },
                 { label: 'Grace Lates', value: `${summary.graceLateDays || 0}/3`, color: 'text-amber-600 bg-amber-50 border border-amber-100/30' },
-                { label: 'Avg Late Time', value: `${summary.avgLateMinutes || 0}m`, color: 'text-cyan-600 bg-cyan-50 border border-cyan-100/30' },
                 { label: 'Overtime Days', value: summary.overtimeDays, color: 'text-purple-600 bg-purple-50 border border-purple-100/30' },
               ].map((stat) => (
                 <div key={stat.label} className={`rounded-2xl p-2.5 sm:p-3 text-center ${stat.color}`}>

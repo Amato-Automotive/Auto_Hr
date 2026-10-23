@@ -409,8 +409,6 @@ router.get(
         mergedRecords.sort((a, b) => a.date.localeCompare(b.date));
 
         let graceLateCount = 0;
-        let totalLateMinutes = 0;
-        let lateCheckInCount = 0;
 
         for (const record of mergedRecords) {
             const shortLeave = shortLeaveByDate.get(record.date);
@@ -439,10 +437,6 @@ router.get(
                             record.isLate = false;
                             record.lateBy = null;
                         } else {
-                            // Contribute to average late minutes (excludes on-time buffer)
-                            totalLateMinutes += diffMins;
-                            lateCheckInCount++;
-
                             if (checkInTime <= '09:45:00') {
                                 graceLateCount++;
                                 if (graceLateCount <= 3) {
@@ -476,7 +470,6 @@ router.get(
             lateDays: mergedRecords.filter((r) => r.isLate).length,
             graceLateDays: mergedRecords.filter((r) => r.isGraceLate).length,
             overtimeDays: mergedRecords.filter((r) => r.overtime).length,
-            avgLateMinutes: lateCheckInCount > 0 ? Math.round(totalLateMinutes / lateCheckInCount) : 0,
         };
 
         res.json({
