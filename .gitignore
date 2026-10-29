@@ -35,3 +35,6 @@ Pay Sheet.*
 *.rar
 010000/
 config.json
+
+# Generated handover documents (PDF/Word/diagrams) — kept locally, not committed
+docs/handover/
