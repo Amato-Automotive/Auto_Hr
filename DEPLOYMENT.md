@@ -12,7 +12,7 @@ database URLs in this file — the repo is public.
 |------|------|---------------|------------|
 | Frontend | React + Vite (static) | **Hostinger** static hosting, `/public_html/connect` | `https://connect.amatoautomotive.co.in` |
 | Backend API | Express + Prisma (Node 20) | **VPS** `srv1645350`, PM2 `hr-api`, behind nginx | `https://connect-api.amatoautomotive.co.in/api` |
-| Biometric receiver | Node TCP server | **VPS**, PM2 `hr-biometric`, port 5005 | (device only, office IP only) |
+| Biometric receiver | Node TCP server | **VPS**, PM2 `hr-biometric`, port 5005 | (device only, office ISP block only) |
 | Database | MySQL 8 | **VPS**, `127.0.0.1:3306`, db `hr_portal`, user `hr_user` | (not public) |
 | Uploaded files | Hostinger FTP | `/public_html/connect/uploads` (public), `/private-uploads` (employee docs) | `https://connect.amatoautomotive.co.in/uploads/...` |
 
@@ -136,6 +136,8 @@ Upload via hPanel File Manager (or FTP) into `/public_html/connect`:
 ---
 
 ## 6. Biometric device (Secureye S-F4BK)
+
+Full handover guide (protocol, history, troubleshooting, security): [`docs/BIOMETRIC.md`](docs/BIOMETRIC.md).
 
 The device **pushes** punches to the VPS; nothing pulls from it.
 
